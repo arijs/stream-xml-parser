@@ -28,7 +28,7 @@ format({
 		name: pkg.export_var,
 		file: pkg.browser,
 		format: 'iife',
-		indent: '\t'
+		indent: ''
 	}
 });
 format({
@@ -37,7 +37,7 @@ format({
 		name: pkg.export_var,
 		file: pkg.main,
 		format: 'cjs',
-		indent: '\t'
+		indent: ''
 	}
 });
 format({
@@ -46,7 +46,7 @@ format({
 		name: pkg.export_var,
 		file: pkg.module,
 		format: 'esm',
-		indent: '\t'
+		indent: ''
 	}
 }, minify({
 	comments: false,
@@ -59,7 +59,7 @@ format({
 		name: pkg.export_var,
 		file: pkg.module_amd,
 		format: 'amd',
-		indent: '\t'
+		indent: ''
 	}
 });
 
