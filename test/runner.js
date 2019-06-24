@@ -45,3 +45,7 @@ module.exports.notPrettyXml = function() {
 module.exports.testHtml = function() {
 	return parseFile(__dirname+'/examples/test.html');
 };
+
+module.exports.selfClose = function() {
+	return parseFile(__dirname+'/examples/self-close.xml');
+};

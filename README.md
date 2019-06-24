@@ -6,6 +6,8 @@
 $ npm run test -- notPrettyXml
 
 $ npm run test -- testHtml
+
+$ npm run test -- selfClose
 ```
 
 ## License

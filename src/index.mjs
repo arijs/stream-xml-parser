@@ -82,6 +82,11 @@ XMLParser.prototype = {
 			event(ev_tagAttribute, cattr, ctag, self, id);
 			self.currentAttr = cattr = null;
 		}
+		function eventTagNameSlash(id) {
+			ctag.name = tagNameSlash;
+			event(ev_tagName, ctag, self, id);
+			tagNameSlash = void 0;
+		}
 		var self = this;
 		text = text || '';
 		var tlen = text.length;
@@ -93,7 +98,7 @@ XMLParser.prototype = {
 		var pos = this.pos;
 		var line = this.line;
 		var column = this.column;
-		var quoteChar, beforeClose;
+		var quoteChar, beforeClose, tagNameSlash;
 		for (var i = 0; i < tlen; i++) {
 			var c = this.c = text[i];
 			pos++;
@@ -230,16 +235,35 @@ XMLParser.prototype = {
 				case st_TAG_NAME:
 					switch (c) {
 						case '>':
-							ctag.name = buf;
+							if (beforeClose) {
+								ctag.name = beforeClose;
+								ctag.selfClose = true;
+								beforeClose = void 0;
+							} else {
+								ctag.name = buf;
+							}
 							event(ev_tagName, ctag, this, '120');
 							eventEndTag('130');
 							break;
+						case '/':
+							beforeClose = buf;
+							buf = '';
+							break;
 						default:
 							if (reSpace.test(c)) {
-								ctag.name = buf;
-								state = st_TAG_NAMED;
-								event(ev_tagName, ctag, this, '140');
+								if (beforeClose) {
+									tagNameSlash = beforeClose;
+									beforeClose = void 0;
+									state = st_TAG_NAMED_SELFCLOSE;
+								} else {
+									ctag.name = buf;
+									state = st_TAG_NAMED;
+									event(ev_tagName, ctag, this, '140');
+								}
 								buf = c;
+							} else if (beforeClose) {
+								buf = beforeClose+'/'+c;
+								beforeClose = void 0;
 							} else {
 								buf += c;
 							}
@@ -272,15 +296,21 @@ XMLParser.prototype = {
 						case '>':
 							if (beforeClose) ctag.selfCloseSpace = beforeClose;
 							if (buf) ctag.endSpace = buf;
+							if (tagNameSlash) eventTagNameSlash('155');
 							ctag.selfClose = true;
 							beforeClose = void 0;
 							eventEndTag('160');
 							break;
 						case '/':
-							this.currentAttr = cattr = {};
-							if (beforeClose) cattr.startSpace = beforeClose;
-							cattr.name = c;
-							eventTagAttr('170');
+							if (tagNameSlash) {
+								tagNameSlash += '/';
+								eventTagNameSlash('165');
+							} else if (beforeClose) {
+								this.currentAttr = cattr = {};
+								cattr.startSpace = beforeClose;
+								cattr.name = c;
+								eventTagAttr('170');
+							}
 							beforeClose = buf;
 							buf = '';
 							break;
@@ -288,6 +318,10 @@ XMLParser.prototype = {
 							if (reSpace.test(c)) {
 								buf += c;
 							} else {
+								if (tagNameSlash) {
+									tagNameSlash += '/';
+									eventTagNameSlash('175');
+								}
 								state = st_ATTR_NAME;
 								this.currentAttr = cattr = {};
 								if (buf) cattr.startSpace = buf;
