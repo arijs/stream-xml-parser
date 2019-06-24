@@ -145,7 +145,13 @@ XMLParser.prototype = {
 							break;
 						case '>':
 							ctag.empty = true;
-							if (buf) ctag.startSpace = buf;
+							if (buf) {
+								if (ctag.close) {
+									ctag.endSpace = buf;
+								} else {
+									ctag.startSpace = buf;
+								}
+							}
 							eventEndTag('50');
 							break;
 						case '/':
