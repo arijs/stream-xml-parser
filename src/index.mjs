@@ -246,8 +246,12 @@ XMLParser.prototype = {
 							eventEndTag('130');
 							break;
 						case '/':
-							beforeClose = buf;
-							buf = '';
+							if (ctag.close) {
+								buf += c;
+							} else {
+								beforeClose = buf;
+								buf = '';
+							}
 							break;
 						default:
 							if (reSpace.test(c)) {
