@@ -1,23 +1,27 @@
 {
-  "name": "@arijs/stream-xml-parser",
-  "version": "0.1.0",
-  "export_amd": "StreamXMLParser",
-  "export_var": "StreamXMLParser",
-  "main": "dist/arijs-stream-xml-parser.cjs.js",
-  "module": "dist/arijs-stream-xml-parser.esm.js",
-  "module_amd": "dist/arijs-stream-xml-parser.amd.js",
-  "browser": "dist/arijs-stream-xml-parser.iife.js",
-  "devDependencies": {
-    "rollup": "^1.0.0",
-    "rollup-plugin-babel-minify": "^8.0.0",
-    "rollup-plugin-uglify": "^6.0.2"
-  },
-  "scripts": {
-    "build": "rollup -c",
-    "watch": "rollup -c -w",
-    "test": "node test/test.js"
-  },
-  "files": [
-    "dist"
-  ]
+	"name": "@arijs/stream-xml-parser",
+	"version": "0.1.0",
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/arijs/stream-xml-parser.git"
+	},
+	"export_amd": "StreamXMLParser",
+	"export_var": "StreamXMLParser",
+	"main": "dist/arijs-stream-xml-parser.cjs.js",
+	"module": "dist/arijs-stream-xml-parser.esm.js",
+	"module_amd": "dist/arijs-stream-xml-parser.amd.js",
+	"browser": "dist/arijs-stream-xml-parser.iife.js",
+	"devDependencies": {
+		"rollup": "^1.0.0",
+		"rollup-plugin-babel-minify": "^8.0.0",
+		"rollup-plugin-uglify": "^6.0.2"
+	},
+	"scripts": {
+		"build": "rollup -c",
+		"watch": "rollup -c -w",
+		"test": "node test/test.js"
+	},
+	"files": [
+		"dist"
+	]
 }
