@@ -152,6 +152,7 @@ XMLParser.prototype = {
 									ctag.startSpace = buf;
 								}
 							}
+							event(ev_tagName, ctag, this, '45');
 							eventEndTag('50');
 							break;
 						case '/':
