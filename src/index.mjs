@@ -461,4 +461,5 @@ XMLParser.prototype = {
 	}
 };
 
-export default XMLParser;
+export { XMLParser };
+export { default as TreeBuilder } from './treebuilder';
