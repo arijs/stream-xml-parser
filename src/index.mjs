@@ -455,6 +455,7 @@ XMLParser.prototype = {
 			event(ev_text, buf, this, '290');
 			buf = '';
 		}
+		this.buffer = buf;
 	},
 	end: function(text) {
 		this.write(text, true);

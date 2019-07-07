@@ -18,6 +18,7 @@
 	},
 	"scripts": {
 		"build": "rollup -c",
+		"build:quick": "rollup -c rollup.config-quick.js",
 		"watch": "rollup -c -w",
 		"test": "node test/test.js"
 	},

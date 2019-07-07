@@ -2,6 +2,9 @@
 var slice = Array.prototype.slice;
 
 var events = {
+	startTag: function(streamTag, parser, eventId) {
+		this.treeEvent('tagInit', null, null, streamTag, parser, eventId);
+	},
 	tagName: function(streamTag, parser, eventId) {
 		if (streamTag.close) {
 			this.findAndCloseTag(streamTag, parser, eventId);
@@ -95,7 +98,7 @@ TreeBuilder.prototype = {
 	getSimpleBreadcrumb: function(p) {
 		return {
 			tag: p.tag.name,
-			parentTag: p.parentTag && p.parentTag.name,
+			parentTag: p.parentTag && p.parentTag.tag.name,
 			parentChildren: p.parentChildren.length
 		};
 	},
@@ -122,7 +125,6 @@ TreeBuilder.prototype = {
 		};
 		this.currentTag = breadcrumb;
 		this.treeEvent('tagOpenStart', null, breadcrumb, streamTag, parser, eventId);
-		// console.log('tagOpen', simplePath(this.path));
 	},
 	findAndCloseTag: function(streamTag, parser, eventId) {
 		var err;
@@ -131,6 +133,7 @@ TreeBuilder.prototype = {
 			var breadcrumb = tagOpen.match;
 			var unclosed = tagOpen.unclosedTags;
 			var uclen = unclosed.length;
+			if (streamTag.selfClose) breadcrumb.tag.selfClose = true;
 			if (uclen) {
 				err = new TreeError(
 					(streamTag.selfClose ? 'Self closing tag ' : 'Close tag ')+

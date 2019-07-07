@@ -1,3 +1,5 @@
 import getFormats from './rollup.config-formats';
 
-export default getFormats();
+export default getFormats({
+	noMinify: true
+});

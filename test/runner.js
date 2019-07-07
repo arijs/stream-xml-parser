@@ -67,7 +67,7 @@ function parseTree(fpath, callback) {
 		xp.end();
 		console.log('finished reading '+fpath, getStateName(xp), JSON.stringify(xp.buffer));
 		var err = tb.errors;
-		console.log('tb', err.length ? 'Errors': 'Success', err);
+		console.log('tb', err.length ? 'Errors' : 'Success', err);
 		var root = tb.root;
 		var rc = root.length;
 		for (var i = 0; i < rc; i++) {
@@ -84,16 +84,24 @@ function parseTree(fpath, callback) {
 module.exports.parseFile = parseFile;
 module.exports.parseTree = parseTree;
 
-module.exports.notPrettyXml = function() {
+module.exports.notPrettyXmlStream = function() {
 	return parseFile(__dirname+'/examples/not-pretty.xml');
+};
+
+module.exports.notPrettyXml = function() {
+	return parseTree(__dirname+'/examples/not-pretty.xml');
 };
 
 module.exports.testHtml = function() {
 	return parseFile(__dirname+'/examples/test.html');
 };
 
-module.exports.selfClose = function() {
+module.exports.selfCloseStream = function() {
 	return parseFile(__dirname+'/examples/self-close.xml');
+};
+
+module.exports.selfClose = function() {
+	return parseTree(__dirname+'/examples/self-close.xml');
 };
 
 module.exports.treeBuilder = function() {
