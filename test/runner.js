@@ -1,6 +1,7 @@
 var fs = require('fs');
 var XMLParser = require('..');
 var TreeBuilder = XMLParser.TreeBuilder;
+var treeStats = XMLParser.treeStats;
 XMLParser = XMLParser.XMLParser;
 
 var slice = Array.prototype.slice;
@@ -40,6 +41,7 @@ rs.on('data', function(text) {
 
 function parseTree(fpath, callback) {
 	var tb = new TreeBuilder(function(ev, err, bc) {
+		treeStats.apply(this, arguments);
 		switch (ev) {
 			case 'tagOpenStart':
 			case 'tagCloseStart':

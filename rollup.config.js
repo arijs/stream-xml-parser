@@ -17,7 +17,7 @@ function format(opt, plugin) {
 	min.output.file = beforeExt(min.output.file, '.min');
 	min.plugins = (min.plugins || []).concat([plugin || uglify()]);
 	list.push(opt);
-	list.push(min);
+	// list.push(min);
 }
 
 var list = [];

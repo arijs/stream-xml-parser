@@ -10,14 +10,24 @@ var events = {
 		}
 	},
 	endTag: function(streamTag, parser, eventId) {
+		var breadcrumb = this.currentTag;
 		if (!streamTag.close) {
-			this.treeEvent('tagOpenEnd', this.currentTag, streamTag, parser, eventId);
+			this.treeEvent('tagOpenEnd', null, breadcrumb, streamTag, parser, eventId);
+			this.path.push(breadcrumb);
+			this.currentChildren.push(breadcrumb.tag);
+			this.currentChildren = breadcrumb.tag.children;
 		}
 		if (streamTag.selfClose) {
 			this.findAndCloseTag(streamTag, parser, eventId);
 		}
 		if (streamTag.close || streamTag.selfClose) {
-			this.treeEvent('tagCloseEnd', this.currentTag, streamTag, parser, eventId);
+			var tagOpen = this.closeTagMatch;
+			var breadcrumbClose = tagOpen.match;
+			this.treeEvent('tagCloseEnd', null, breadcrumbClose, streamTag, parser, eventId);
+			this.path = this.path.slice(0, tagOpen.index);
+			this.currentTag = breadcrumbClose.parentTag;
+			this.currentChildren = breadcrumbClose.parentChildren;
+			this.closeTagMatch = null;
 		}
 	},
 	text: function(text) {
@@ -73,14 +83,13 @@ TreeBuilder.prototype = {
 	root: null,
 	currentTag: null,
 	currentChildren: null,
+	closeTagMatch: null,
 	path: null,
 	errors: null,
 	parserEvent: function(ev) {
 		var handler = this.events[ev.name];
 		if (handler) {
 			handler.apply(this, slice.call(arguments, 1));
-		} else {
-			console.log('no handler', ev)
 		}
 	},
 	getSimpleBreadcrumb: function(p) {
@@ -106,16 +115,13 @@ TreeBuilder.prototype = {
 			attrs: [],
 			children: []
 		};
-		this.currentTag = treeTag;
 		var breadcrumb = {
 			tag: treeTag,
 			parentTag: parentTag,
 			parentChildren: this.currentChildren
 		};
+		this.currentTag = breadcrumb;
 		this.treeEvent('tagOpenStart', null, breadcrumb, streamTag, parser, eventId);
-		this.path.push(breadcrumb);
-		this.currentChildren.push(treeTag);
-		this.currentChildren = treeTag.children;
 		// console.log('tagOpen', simplePath(this.path));
 	},
 	findAndCloseTag: function(streamTag, parser, eventId) {
@@ -143,9 +149,7 @@ TreeBuilder.prototype = {
 				// @TODO this.resolveUnclosedTags(breadcrumb, unclosed);
 			}
 			this.treeEvent('tagCloseStart', null, breadcrumb, streamTag, parser, eventId);
-			this.path = this.path.slice(0, tagOpen.index);
-			this.currentTag = breadcrumb.parentTag;
-			this.currentChildren = breadcrumb.parentChildren;
+			this.closeTagMatch = tagOpen;
 		} else {
 			err = new TreeError(
 				'Close tag '+JSON.stringify(ctag.name)+' without opening tag',
