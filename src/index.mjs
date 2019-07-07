@@ -463,3 +463,4 @@ XMLParser.prototype = {
 
 export { XMLParser };
 export { default as TreeBuilder } from './treebuilder';
+export { default as treeStats } from './treestats';

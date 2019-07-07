@@ -39,11 +39,21 @@ rs.on('data', function(text) {
 }
 
 function parseTree(fpath, callback) {
-	var tb = new TreeBuilder();
-	var xp = new XMLParser(function(ev) {
-		tb.parserEvent.apply(tb, arguments);
-		// console.log('ev', ev);
+	var tb = new TreeBuilder(function(ev, err, bc) {
+		switch (ev) {
+			case 'tagOpenStart':
+			case 'tagCloseStart':
+			case 'error':
+				break;
+			default:
+				ev = null;
+		}
+		if (ev) {
+			bc = bc && tb.getSimpleBreadcrumb(bc);
+			console.log(ev, err, tb.getSimplePath(), bc);
+		}
 	});
+	var xp = new XMLParser(tb.parserEvent.bind(tb));
 	
 	// var fpath = '../examples/not-pretty.xml';
 	// var fpath = '../examples/test.html';

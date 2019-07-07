@@ -1,72 +1,23 @@
 
 var slice = Array.prototype.slice;
 
-function simplePath(path) {
-	var list = [];
-	var c = path.length;
-	for (var i = 0; i < c; i++) {
-		var p = path[i];
-		list.push({
-			tag: p.tag.name,
-			parentTag: p.parentTag && p.parentTag.name,
-			parentChildren: p.parentChildren.length
-		});
-	}
-	return list;
-}
-
 var events = {
-	tagName: function(ctag, parser, eventId) {
-		if (ctag.close) {
-			var tagOpen = this.findTagOpen(ctag);
-			if (tagOpen) {
-				var breadcrumb = tagOpen.match;
-				var unclosed = tagOpen.unclosedTags;
-				var uclen = unclosed.length;
-				if (uclen) {
-					this.errors.push(new TreeError(
-						'Close tag '+JSON.stringify(ctag.name)+' with '+uclen+' open tags',
-						parserState(parser, eventId),
-						{
-							path: this.path,
-							pathIndex: tagOpen.index,
-							tagClose: ctag,
-							tagOpen: breadcrumb.tag,
-							unclosedTags: unclosed
-						}
-					));
-					// this.resolveUnclosedTags(breadcrumb, unclosed);
-				}
-				this.closeTag(breadcrumb, ctag, parser);
-				this.path = this.path.slice(0, tagOpen.index);
-				this.currentTag = breadcrumb.parentTag;
-				this.currentChildren = breadcrumb.parentChildren;
-			} else {
-				this.errors.push(new TreeError(
-					'Close tag '+JSON.stringify(ctag.name)+' without opening tag',
-					parserState(parser, eventId)
-				));
-			}
-			console.log('tagClose', simplePath(this.path));
+	tagName: function(streamTag, parser, eventId) {
+		if (streamTag.close) {
+			this.findAndCloseTag(streamTag, parser, eventId);
 		} else {
-			var parentTag = this.currentTag;
-			this.currentTag = this.openTag(ctag, parser);
-			var breadcrumb = {
-				tag: this.currentTag,
-				parentTag: parentTag,
-				parentChildren: this.currentChildren
-			};
-			this.path.push(breadcrumb);
-			this.currentChildren.push(this.currentTag);
-			this.currentChildren = this.currentTag.children;
-			console.log('tagOpen', simplePath(this.path));
+			this.openTag(streamTag, parser, eventId);
 		}
 	},
-	endTag: function(ctag) {
-		if (ctag.close) {
-			
-		} else if (ctag.selfClose) {
-
+	endTag: function(streamTag, parser, eventId) {
+		if (!streamTag.close) {
+			this.treeEvent('tagOpenEnd', this.currentTag, streamTag, parser, eventId);
+		}
+		if (streamTag.selfClose) {
+			this.findAndCloseTag(streamTag, parser, eventId);
+		}
+		if (streamTag.close || streamTag.selfClose) {
+			this.treeEvent('tagCloseEnd', this.currentTag, streamTag, parser, eventId);
 		}
 	},
 	text: function(text) {
@@ -88,6 +39,7 @@ function parserState(parser, eventId) {
 		eventId: eventId
 	};
 }
+function noop(){}
 
 function TreeError(message, state) {
 	this.message = message;
@@ -101,7 +53,15 @@ TreeError.prototype.state = null;
 TreeError.prototype.extras = null;
 
 function TreeBuilder(opt) {
-	this.opt = opt;
+	if (opt instanceof Function) {
+		this.treeEvent = opt;
+	} else if (opt) {
+		this.opt = opt;
+		this.treeEvent = opt.event;
+	}
+	if (!(this.treeEvent instanceof Function)) {
+		this.treeEvent = noop;
+	}
 	this.root = this.currentChildren = [];
 	this.path = [];
 	this.errors = [];
@@ -109,6 +69,7 @@ function TreeBuilder(opt) {
 TreeBuilder.prototype = {
 	constructor: TreeBuilder,
 	opt: null,
+	treeEvent: null,
 	root: null,
 	currentTag: null,
 	currentChildren: null,
@@ -122,29 +83,78 @@ TreeBuilder.prototype = {
 			console.log('no handler', ev)
 		}
 	},
-	openTag: function(ctag, parser) {
+	getSimpleBreadcrumb: function(p) {
 		return {
-			sourceOpen: ctag,
-			sourceClose: null,
-			posOpen: {
-				byte: parser.pos,
-				line: parser.line,
-				column: parser.column
-			},
-			posClose: null,
-			name: ctag.name,
+			tag: p.tag.name,
+			parentTag: p.parentTag && p.parentTag.name,
+			parentChildren: p.parentChildren.length
+		};
+	},
+	getSimplePath: function() {
+		var path = this.path;
+		var list = [];
+		var c = path.length;
+		for (var i = 0; i < c; i++) {
+			list.push(this.getSimpleBreadcrumb(path[i]));
+		}
+		return list;
+	},
+	openTag: function(streamTag, parser, eventId) {
+		var parentTag = this.currentTag;
+		var treeTag = {
+			name: streamTag.name,
 			attrs: [],
 			children: []
 		};
-	},
-	closeTag: function(breadcrumb, ctag, parser) {
-		var btag = breadcrumb.tag;
-		btag.sourceClose = ctag;
-		btag.posClose = {
-			byte: parser.pos,
-			line: parser.line,
-			column: parser.column
+		this.currentTag = treeTag;
+		var breadcrumb = {
+			tag: treeTag,
+			parentTag: parentTag,
+			parentChildren: this.currentChildren
 		};
+		this.treeEvent('tagOpenStart', null, breadcrumb, streamTag, parser, eventId);
+		this.path.push(breadcrumb);
+		this.currentChildren.push(treeTag);
+		this.currentChildren = treeTag.children;
+		// console.log('tagOpen', simplePath(this.path));
+	},
+	findAndCloseTag: function(streamTag, parser, eventId) {
+		var err;
+		var tagOpen = this.findTagOpen(streamTag);
+		if (tagOpen) {
+			var breadcrumb = tagOpen.match;
+			var unclosed = tagOpen.unclosedTags;
+			var uclen = unclosed.length;
+			if (uclen) {
+				err = new TreeError(
+					(streamTag.selfClose ? 'Self closing tag ' : 'Close tag ')+
+					JSON.stringify(streamTag.name)+' with '+uclen+' open tags',
+					parserState(parser, eventId),
+					{
+						path: this.path,
+						pathIndex: tagOpen.index,
+						tagClose: streamTag,
+						tagOpen: breadcrumb.tag,
+						unclosedTags: unclosed
+					}
+				);
+				this.errors.push(err);
+				this.treeEvent('error', err, breadcrumb, streamTag, parser, eventId);
+				// @TODO this.resolveUnclosedTags(breadcrumb, unclosed);
+			}
+			this.treeEvent('tagCloseStart', null, breadcrumb, streamTag, parser, eventId);
+			this.path = this.path.slice(0, tagOpen.index);
+			this.currentTag = breadcrumb.parentTag;
+			this.currentChildren = breadcrumb.parentChildren;
+		} else {
+			err = new TreeError(
+				'Close tag '+JSON.stringify(ctag.name)+' without opening tag',
+				parserState(parser, eventId)
+			)
+			this.errors.push(err);
+			this.treeEvent('error', err, null, streamTag, parser, eventId);
+		}
+		// console.log('tagClose', simplePath(this.path));
 	},
 	findTagOpen: function(ctag) {
 		var p = this.path;
