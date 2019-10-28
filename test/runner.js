@@ -9,6 +9,21 @@ function getStateName(xp) {
 	var s = xp.state;
 	return s && s.name;
 }
+function recursivePrint(tree, max, pre) {
+	var rc = tree.length;
+	for (var i = 0; i < rc; i++) {
+		var ri = tree[i];
+		var rip = (1+i)+'/'+rc;
+		if (typeof ri === 'string') {
+			console.log(pre+'text '+rip, JSON.stringify(ri));
+		} else if (max == 0) {
+			console.log(pre+'tag '+rip, ri);
+		} else {
+			console.log(pre+'tag '+rip, ri.name, ri.attrs, ri.stats);
+			recursivePrint(ri.children, max-1, pre+'- ');
+		}
+	}
+}
 
 function parseFile(fpath, callback) {
 
@@ -48,12 +63,11 @@ function parseTree(fpath, callback) {
 			case 'error':
 				break;
 			default:
-				ev = null;
+				return;
+				// ev = null;
 		}
-		if (ev) {
-			bc = bc && tb.getSimpleBreadcrumb(bc);
-			console.log(ev, err, tb.getSimplePath(), bc);
-		}
+		bc = bc && tb.getSimpleBreadcrumb(bc);
+		console.log(ev, err, tb.getSimplePath(), bc);
 	});
 	var xp = new XMLParser(tb.parserEvent.bind(tb));
 	
@@ -68,12 +82,7 @@ function parseTree(fpath, callback) {
 		console.log('finished reading '+fpath, getStateName(xp), JSON.stringify(xp.buffer));
 		var err = tb.errors;
 		console.log('tb', err.length ? 'Errors' : 'Success', err);
-		var root = tb.root;
-		var rc = root.length;
-		for (var i = 0; i < rc; i++) {
-			var ri = root[i];
-			console.log('tb', typeof ri === 'string' ? JSON.stringify(ri) : ri);
-		}
+		recursivePrint(tb.root.tag.children, 2, '');
 		callback instanceof Function && callback();
 	});
 	rs.on('data', function(text) {
