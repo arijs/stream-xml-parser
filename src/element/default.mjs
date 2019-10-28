@@ -29,12 +29,6 @@ Attributes.prototype.init = function(el) {
 export function Children(key) {
 	this.key = key || 'children';
 }
-// Children.prototype.get = function(el) {
-// 	return el[this.key];
-// };
-// Children.prototype.set = function(el, children) {
-// 	el[this.key] = children;
-// };
 Children.prototype.addElement = function(el, child) {
 	el[this.key].push(child);
 };

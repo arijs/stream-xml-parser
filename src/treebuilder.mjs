@@ -22,8 +22,6 @@ var events = {
 			this.treeEvent('tagOpenEnd', null, breadcrumb, streamTag, parser, eventId);
 			this.path.push(breadcrumb);
 			this.elementChildren.addElement(breadcrumb.parentScope.tag, breadcrumb.tag);
-			// this.currentChildren.push(breadcrumb.tag);
-			// this.currentChildren = breadcrumb.tag.children;
 		}
 		if (streamTag.selfClose) {
 			this.findAndCloseTag(streamTag, parser, eventId);
@@ -33,9 +31,7 @@ var events = {
 			var breadcrumbClose = tagOpen.match;
 			this.treeEvent('tagCloseEnd', null, breadcrumbClose, streamTag, parser, eventId);
 			this.path = this.path.slice(0, tagOpen.index);
-			this.currentScope = this.currentScope.parentScope;
-			// this.currentTag = breadcrumbClose.parentTag;
-			// this.currentChildren = breadcrumbClose.parentChildren;
+			this.currentScope = breadcrumbClose.parentScope;
 			this.closeTagMatch = null;
 		}
 	},
@@ -75,16 +71,21 @@ TreeError.prototype.extras = null;
 
 function TreeBuilder(opt) {
 	opt = opt || {};
-	this.treeEvent = opt instanceof Function ? opt : opt.treeEvent || noop;
+	this.treeEvent = opt instanceof Function
+		? opt : opt.treeEvent || noop;
 	var element = opt.element || {};
 	var elInit = element.init;
 	var ElName = element.name;
 	var ElAttrs = element.attrs;
 	var ElChildren = element.children;
-	this.elementInit = elInit instanceof Function ? elInit : elementDefault.elementInit;
-	this.elementName = ElName instanceof Function ? new ElName : new elementDefault.Name(ElName);
-	this.elementAttrs = ElAttrs instanceof Function ? new ElAttrs : new elementDefault.Attributes(ElAttrs);
-	this.elementChildren = ElChildren instanceof Function ? new ElChildren : new elementDefault.Children(ElChildren);
+	this.elementInit = elInit instanceof Function
+		? elInit : elementDefault.elementInit;
+	this.elementName = ElName instanceof Function
+		? new ElName : new elementDefault.Name(ElName);
+	this.elementAttrs = ElAttrs instanceof Function
+		? new ElAttrs : new elementDefault.Attributes(ElAttrs);
+	this.elementChildren = ElChildren instanceof Function
+		? new ElChildren : new elementDefault.Children(ElChildren);
 	this.scopeNewChild();
 	this.root = this.currentScope;
 	this.path = [];
