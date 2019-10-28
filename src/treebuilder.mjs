@@ -13,6 +13,9 @@ var events = {
 			this.openTag(streamTag, parser, eventId);
 		}
 	},
+	tagAttribute: function(streamAttr, streamTag, parser, eventId) {
+		this.elementAttrs.add(this.currentScope.tag, streamAttr);
+	},
 	endTag: function(streamTag, parser, eventId) {
 		var breadcrumb = this.currentScope;
 		if (!streamTag.close) {
@@ -119,8 +122,8 @@ TreeBuilder.prototype = {
 	getSimpleBreadcrumb: function(p) {
 		return {
 			tag: this.elementName.get(p.tag),
-			parentTag: /*p.parentScope &&*/ this.elementName.get(p.parentScope.tag),
-			parentChildren: /*p.parentScope &&*/ this.elementChildren.getCount(p.parentScope.tag)
+			parentTag: this.elementName.get(p.parentScope.tag),
+			parentChildren: this.elementChildren.getCount(p.parentScope.tag)
 		};
 	},
 	getSimplePath: function() {
