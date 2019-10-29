@@ -17,40 +17,42 @@ function getPosEnd(parser) {
 }
 
 var statsEventMap = {
-	tagInit: function statsTagInit(err, bc, streamTag, parser) {
+	tagInit: function statsTagInit(ev) {
 		this.statsLastTagInit = {
-			tag: streamTag,
-			pos: getPosStart(parser)
+			tag: ev.event.tag,
+			pos: getPosStart(ev.event.parser)
 		};
 	},
-	tagOpenStart: function statsTagOpenStart(err, bc, streamTag, parser) {
-		var s = bc.tag.stats;
-		s || (s = bc.tag.stats = {});
+	tagOpenStart: function statsTagOpenStart(ev) {
+		var s = ev.tag.stats;
+		s || (s = ev.tag.stats = {});
 		var sl = this.statsLastTagInit;
+		var streamTag = ev.event.tag;
 		s.openSource = streamTag;
-		s.openStart = (sl && sl.tag === streamTag && sl.pos) || getPosStart(parser);
+		s.openStart = (sl && sl.tag === streamTag && sl.pos) || getPosStart(ev.event.parser);
 	},
-	tagOpenEnd: function statsTagOpenEnd(err, bc, streamTag, parser) {
-		var s = bc.tag.stats;
-		s || (s = bc.tag.stats = {});
-		s.openEnd = getPosEnd(parser);
+	tagOpenEnd: function statsTagOpenEnd(ev) {
+		var s = ev.tag.stats;
+		s || (s = ev.tag.stats = {});
+		s.openEnd = getPosEnd(ev.event.parser);
 		this.statsLastTagInit = null;
 	},
-	tagCloseStart: function statsTagCloseStart(err, bc, streamTag, parser) {
-		var s = bc.tag.stats;
-		s || (s = bc.tag.stats = {});
+	tagCloseStart: function statsTagCloseStart(ev) {
+		var s = ev.tag.stats;
+		s || (s = ev.tag.stats = {});
 		var sl = this.statsLastTagInit;
+		var streamTag = ev.event.tag;
 		s.closeSource = streamTag;
-		s.closeStart = (sl && sl.tag === streamTag && sl.pos) || getPosStart(parser);
+		s.closeStart = (sl && sl.tag === streamTag && sl.pos) || getPosStart(ev.event.parser);
 	},
-	tagCloseEnd: function statsTagCloseEnd(err, bc, streamTag, parser) {
-		var s = bc.tag.stats;
-		s || (s = bc.tag.stats = {});
-		s.closeEnd = getPosEnd(parser);
+	tagCloseEnd: function statsTagCloseEnd(ev) {
+		var s = ev.tag.stats;
+		s || (s = ev.tag.stats = {});
+		s.closeEnd = getPosEnd(ev.event.parser);
 		this.statsLastTagInit = null;
 	}
 };
 export default function statsEvent(ev) {
 	var fn = statsEventMap[ev];
-	if (fn) fn.apply(this, slice.call(arguments, 1));
+	if (fn) fn.call(this, ev);
 };

@@ -28,10 +28,9 @@ function recursivePrint(tree, max, pre) {
 function parseFile(fpath, callback) {
 
 function xpEvent(ev) {
-	var ar = arguments;
-	var last = ar[ar.length - 1];
-	var args = slice.call(ar, 1, Math.max(0, ar.length - 2));
-	console.log(xp.c, xp.line, xp.column, xp.endColumn, [ev.name, last].join(':'), args);
+	var tag = ev.tag;
+	var attr = ev.attr;
+	console.log(xp.c, xp.line, xp.column, xp.endColumn, xp.pos, [ev.name, ev.id].join(':'), tag && tag.name || '', attr && [attr.name, attr.value].join('=') || '');
 }
 
 var xp = new XMLParser(xpEvent);
@@ -55,9 +54,9 @@ rs.on('data', function(text) {
 }
 
 function parseTree(fpath, callback) {
-	var tb = new TreeBuilder(function(ev, err, bc) {
-		treeStats.apply(this, arguments);
-		switch (ev) {
+	var tb = new TreeBuilder(function(ev) {
+		treeStats.call(this, ev);
+		switch (ev.name) {
 			case 'tagOpenStart':
 			case 'tagCloseStart':
 			case 'error':
@@ -66,7 +65,7 @@ function parseTree(fpath, callback) {
 				return;
 				// ev = null;
 		}
-		bc = bc && tb.getSimpleBreadcrumb(bc);
+		var bc = tb.getSimpleBreadcrumb(ev);
 		console.log(ev, err, tb.getSimplePath(), bc);
 	});
 	var xp = new XMLParser(tb.parserEvent.bind(tb));

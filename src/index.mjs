@@ -72,25 +72,35 @@ XMLParser.prototype = {
 				}
 			}
 		}
+		function event(ev, id) {
+			eventFn({
+				name: ev.name,
+				id: id,
+				attr: cattr,
+				tag: ctag,
+				text: buf,
+				parser: self
+			});
+		}
 		function eventEndTag(id, ev_custom) {
 			buf = '';
 			state = st_TEXT;
-			event(ev_custom || ev_endTag, ctag, self, id);
+			event(ev_custom || ev_endTag, id);
 			self.currentTag = ctag = null;
 		}
 		function eventTagAttr(id) {
-			event(ev_tagAttribute, cattr, ctag, self, id);
+			event(ev_tagAttribute, id);
 			self.currentAttr = cattr = null;
 		}
 		function eventTagNameSlash(id) {
 			ctag.name = tagNameSlash;
-			event(ev_tagName, ctag, self, id);
+			event(ev_tagName, id);
 			tagNameSlash = void 0;
 		}
 		var self = this;
 		text = text || '';
 		var tlen = text.length;
-		var event = this.event;
+		var eventFn = this.event;
 		var state = this.state;
 		var ctag = this.currentTag;
 		var cattr = this.currentAttr;
@@ -116,12 +126,12 @@ XMLParser.prototype = {
 					switch (c) {
 						case '<':
 							if (buf) {
-								event(ev_text, buf, this, '10');
+								event(ev_text, '10');
 								buf = '';
 							}
 							state = st_TAG_START;
 							this.currentTag = ctag = {};
-							event(ev_startTag, ctag, this, '20');
+							event(ev_startTag, '20');
 							break;
 						default:
 							buf += c;
@@ -134,14 +144,14 @@ XMLParser.prototype = {
 							ctag.instruction = true;
 							buf = '';
 							state = st_INSTRUCTION;
-							event(ev_startInstruction, ctag, this, '30');
+							event(ev_startInstruction, '30');
 							break;
 						case '!':
 							if (buf) ctag.startSpace = buf;
 							ctag.declaration = true;
 							buf = '';
 							state = st_DECLARATION;
-							event(ev_startDeclaration, ctag, this, '40');
+							event(ev_startDeclaration, '40');
 							break;
 						case '>':
 							ctag.empty = true;
@@ -151,8 +161,9 @@ XMLParser.prototype = {
 								} else {
 									ctag.startSpace = buf;
 								}
+								buf = '';
 							}
-							event(ev_tagName, ctag, this, '45');
+							event(ev_tagName, '45');
 							eventEndTag('50');
 							break;
 						case '/':
@@ -197,7 +208,7 @@ XMLParser.prototype = {
 								ctag.comment = true;
 								buf = '';
 								state = st_COMMENT;
-								event(ev_startComment, ctag, this, '80');
+								event(ev_startComment, '80');
 								break;
 							}
 						default:
@@ -206,7 +217,7 @@ XMLParser.prototype = {
 								ctag.cdata = true;
 								buf = '';
 								state = st_CDATA;
-								event(ev_startCdata, ctag, this, '90');
+								event(ev_startCdata, '90');
 								break;
 							}
 					}
@@ -218,7 +229,7 @@ XMLParser.prototype = {
 								ctag.textComment = buf.substr(0, buf.length - 1);
 								buf = '';
 								state = st_DECLARATION;
-								event(ev_endComment, ctag, this, '100');
+								event(ev_endComment, '100');
 								break;
 							}
 						default:
@@ -232,7 +243,7 @@ XMLParser.prototype = {
 								ctag.textCdata = buf.substr(0, buf.length - 1);
 								buf = '';
 								state = st_DECLARATION;
-								event(ev_endCdata, ctag, this, '110');
+								event(ev_endCdata, '110');
 								break;
 							}
 						default:
@@ -249,7 +260,7 @@ XMLParser.prototype = {
 							} else {
 								ctag.name = buf;
 							}
-							event(ev_tagName, ctag, this, '120');
+							event(ev_tagName, '120');
 							eventEndTag('130');
 							break;
 						case '/':
@@ -269,7 +280,7 @@ XMLParser.prototype = {
 								} else {
 									ctag.name = buf;
 									state = st_TAG_NAMED;
-									event(ev_tagName, ctag, this, '140');
+									event(ev_tagName, '140');
 								}
 								buf = c;
 							} else if (beforeClose) {
@@ -452,7 +463,7 @@ XMLParser.prototype = {
 		this.c = void 0;
 		this.state = state;
 		if (final && state === st_TEXT && buf) {
-			event(ev_text, buf, this, '290');
+			event(ev_text, '290');
 			buf = '';
 		}
 		this.buffer = buf;

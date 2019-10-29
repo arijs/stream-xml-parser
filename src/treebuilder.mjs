@@ -3,33 +3,35 @@ import * as elementDefault from './element/default';
 var slice = Array.prototype.slice;
 
 var events = {
-	startTag: function(streamTag, parser, eventId) {
-		this.treeEvent('tagInit', null, null, streamTag, parser, eventId);
+	startTag: function(ev) {
+		this.treeEvent('tagInit', null, ev);
 	},
-	tagName: function(streamTag, parser, eventId) {
-		if (streamTag.close) {
-			this.findAndCloseTag(streamTag, parser, eventId);
+	tagName: function(ev) {
+		if (ev.tag.close) {
+			this.findAndCloseTag(ev);
 		} else {
-			this.openTag(streamTag, parser, eventId);
+			this.openTag(ev);
 		}
 	},
-	tagAttribute: function(streamAttr, streamTag, parser, eventId) {
-		this.elementAttrs.add(this.currentScope.tag, streamAttr);
+	tagAttribute: function(ev) {
+		this.elementAttrs.add(this.currentScope.tag, ev.attr);
 	},
-	endTag: function(streamTag, parser, eventId) {
+	endTag: function(ev) {
 		var breadcrumb = this.currentScope;
-		if (!streamTag.close) {
-			this.treeEvent('tagOpenEnd', null, breadcrumb, streamTag, parser, eventId);
+		var tagClose = ev.tag.close;
+		var tagSelfClose = ev.tag.selfClose;
+		if (!tagClose) {
+			this.treeEvent('tagOpenEnd', null, ev);
 			this.path.push(breadcrumb);
 			this.elementChildren.addElement(breadcrumb.parentScope.tag, breadcrumb.tag);
 		}
-		if (streamTag.selfClose) {
-			this.findAndCloseTag(streamTag, parser, eventId);
+		if (tagSelfClose) {
+			this.findAndCloseTag(ev);
 		}
-		if (streamTag.close || streamTag.selfClose) {
+		if (tagClose || tagSelfClose) {
 			var tagOpen = this.closeTagMatch;
 			var breadcrumbClose = tagOpen.match;
-			this.treeEvent('tagCloseEnd', null, breadcrumbClose, streamTag, parser, eventId);
+			this.treeEvent('tagCloseEnd', null, ev);
 			this.path = this.path.slice(0, tagOpen.index);
 			this.currentScope = breadcrumbClose.parentScope;
 			this.closeTagMatch = null;
@@ -40,20 +42,6 @@ var events = {
 	}
 };
 
-function parserState(parser, eventId) {
-	return {
-		chr: parser.c,
-		pos: parser.pos,
-		line: parser.line,
-		column: parser.column,
-		endPos: parser.endPos,
-		endLine: parser.endLine,
-		endColumn: parser.endColumn,
-		currentTag: parser.currentTag,
-		currentAttr: parser.currentAttr,
-		eventId: eventId
-	};
-}
 function noop(){}
 
 function TreeError(message, code, state) {
@@ -71,8 +59,8 @@ TreeError.prototype.extras = null;
 
 function TreeBuilder(opt) {
 	opt = opt || {};
-	this.treeEvent = opt instanceof Function
-		? opt : opt.treeEvent || noop;
+	this.eventFn = opt instanceof Function
+		? opt : opt.event || noop;
 	var element = opt.element || {};
 	var elInit = element.init;
 	var ElName = element.name;
@@ -93,7 +81,7 @@ function TreeBuilder(opt) {
 }
 TreeBuilder.prototype = {
 	constructor: TreeBuilder,
-	treeEvent: null,
+	eventFn: null,
 	root: null,
 	currentScope: null,
 	closeTagMatch: null,
@@ -102,8 +90,38 @@ TreeBuilder.prototype = {
 	parserEvent: function(ev) {
 		var handler = this.events[ev.name];
 		if (handler) {
-			handler.apply(this, slice.call(arguments, 1));
+			handler.call(this, ev);
 		}
+	},
+	getParserState: function({parser, id: eventId}) {
+		return {
+			chr: parser.c,
+			pos: parser.pos,
+			line: parser.line,
+			column: parser.column,
+			endPos: parser.endPos,
+			endLine: parser.endLine,
+			endColumn: parser.endColumn,
+			currentTag: parser.currentTag,
+			currentAttr: parser.currentAttr,
+			eventId: eventId
+		};
+	},
+	getEventObject: function(name, error, ev) {
+		var cs = this.currentScope;
+		return {
+			name,
+			error,
+			event: ev,
+			tag: cs.tag,
+			parent: cs.parent,
+			path: this.path,
+			tagClose: this.closeTagMatch,
+			builder: this
+		};
+	},
+	treeEvent: function(name, error, ev) {
+		this.eventFn(this.getEventObject(name, error, ev));
 	},
 	newElement: function() {
 		var el = this.elementInit();
@@ -123,8 +141,8 @@ TreeBuilder.prototype = {
 	getSimpleBreadcrumb: function(p) {
 		return {
 			tag: this.elementName.get(p.tag),
-			parentTag: this.elementName.get(p.parentScope.tag),
-			parentChildren: this.elementChildren.getCount(p.parentScope.tag)
+			parentTag: this.elementName.get(p.parent.tag),
+			parentChildren: this.elementChildren.getCount(p.parent.tag)
 		};
 	},
 	getSimplePath: function() {
@@ -136,14 +154,16 @@ TreeBuilder.prototype = {
 		}
 		return list;
 	},
-	openTag: function(streamTag, parser, eventId) {
+	openTag: function(ev) {
 		this.scopeNewChild();
-		this.elementName.set(this.currentScope.tag, streamTag.name);
-		this.treeEvent('tagOpenStart', null, this.currentScope, streamTag, parser, eventId);
+		this.elementName.set(this.currentScope.tag, ev.tag.name);
+		this.treeEvent('tagOpenStart', null, ev);
 	},
-	findAndCloseTag: function(streamTag, parser, eventId) {
+	findAndCloseTag: function(ev) {
 		var err;
+		var streamTag = ev.tag;
 		var tagOpen = this.findTagOpen(streamTag);
+		this.closeTagMatch = tagOpen;
 		if (tagOpen) {
 			var breadcrumb = tagOpen.match;
 			var unclosed = tagOpen.unclosedTags;
@@ -153,38 +173,28 @@ TreeBuilder.prototype = {
 				err = new TreeError(
 					(streamTag.selfClose ? 'Self closing tag ' : 'Close tag ')+
 					JSON.stringify(streamTag.name)+' with '+uclen+' open tags',
-					streamTag.selfClose ? 101 : 100,
-					parserState(parser, eventId),
-					{
-						path: this.path,
-						pathIndex: tagOpen.index,
-						tagClose: streamTag,
-						tagOpen: breadcrumb.tag,
-						unclosedTags: unclosed
-					}
+					streamTag.selfClose ? 101 : 100
 				);
 				this.errors.push(err);
-				this.treeEvent('error', err, breadcrumb, streamTag, parser, eventId);
+				this.treeEvent('error', err, ev);
 				// @TODO this.resolveUnclosedTags(breadcrumb, unclosed);
 			}
-			this.treeEvent('tagCloseStart', null, breadcrumb, streamTag, parser, eventId);
-			this.closeTagMatch = tagOpen;
+			this.treeEvent('tagCloseStart', null, ev);
 		} else {
 			err = new TreeError(
-				'Close tag '+JSON.stringify(ctag.name)+' without opening tag',
-				102,
-				parserState(parser, eventId)
+				'Close tag '+JSON.stringify(streamTag.name)+' without opening tag',
+				102
 			);
 			this.errors.push(err);
-			this.treeEvent('error', err, null, streamTag, parser, eventId);
+			this.treeEvent('error', err, ev);
 		}
 	},
-	findTagOpen: function(ctag) {
+	findTagOpen: function(streamTag) {
 		var p = this.path;
 		var match, i;
 		for (i = p.length - 1; 0 <= i; i--) {
 			var ptag = p[i];
-			if (this.elementName.get(ptag.tag) === ctag.name) {
+			if (this.elementName.get(ptag.tag) === streamTag.name) {
 				match = ptag;
 				break;
 			}
@@ -199,6 +209,5 @@ TreeBuilder.prototype = {
 };
 
 TreeBuilder.TreeError = TreeError;
-TreeBuilder.parserState = parserState;
 
 export default TreeBuilder;

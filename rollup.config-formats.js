@@ -2,6 +2,7 @@
 // import commonjs from 'rollup-plugin-commonjs';
 import { uglify } from 'rollup-plugin-uglify';
 import minify from 'rollup-plugin-babel-minify';
+import buble from 'rollup-plugin-buble';
 import pkg from './package.json';
 
 function beforeExt(name, add) {
@@ -16,6 +17,8 @@ export default function getFormats(opt) {
 const noMinify = opt && opt.noMinify;
 
 function format(opt, plugin) {
+	if (!(opt.plugins instanceof Array)) opt.plugins = [];
+	opt.plugins.unshift(buble());
 	list.push(opt);
 	if (!noMinify) {
 		var min = Object.assign({}, opt);
