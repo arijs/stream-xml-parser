@@ -53,6 +53,6 @@ var statsEventMap = {
 	}
 };
 export default function statsEvent(ev) {
-	var fn = statsEventMap[ev];
+	var fn = statsEventMap[ev.name];
 	if (fn) fn.call(this, ev);
 };

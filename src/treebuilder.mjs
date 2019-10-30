@@ -114,7 +114,7 @@ TreeBuilder.prototype = {
 			error,
 			event: ev,
 			tag: cs.tag,
-			parent: cs.parent,
+			parent: cs.parentScope,
 			path: this.path,
 			tagClose: this.closeTagMatch,
 			builder: this
@@ -125,9 +125,9 @@ TreeBuilder.prototype = {
 	},
 	newElement: function() {
 		var el = this.elementInit();
-		this.elementName.init(el);
-		this.elementAttrs.init(el);
-		this.elementChildren.init(el);
+		// this.elementName.init(el);
+		// this.elementAttrs.init(el);
+		// this.elementChildren.init(el);
 		return el;
 	},
 	scopeNewChild: function() {
