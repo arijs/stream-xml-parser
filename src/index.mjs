@@ -108,7 +108,9 @@ XMLParser.prototype = {
 		var pos = this.pos;
 		var line = this.line;
 		var column = this.column;
-		var quoteChar, beforeClose, tagNameSlash;
+		var attrQuoteChar = this.attrQuoteChar;
+		var tagBeforeClose = this.tagBeforeClose;
+		var tagNameSlash = this.tagNameSlash;
 		for (var i = 0; i < tlen; i++) {
 			var c = this.c = text[i];
 			pos++;
@@ -253,10 +255,10 @@ XMLParser.prototype = {
 				case st_TAG_NAME:
 					switch (c) {
 						case '>':
-							if (beforeClose) {
-								ctag.name = beforeClose;
+							if (tagBeforeClose) {
+								ctag.name = tagBeforeClose;
 								ctag.selfClose = true;
-								beforeClose = void 0;
+								this.tagBeforeClose = tagBeforeClose = void 0;
 							} else {
 								ctag.name = buf;
 							}
@@ -267,15 +269,15 @@ XMLParser.prototype = {
 							if (ctag.close) {
 								buf += c;
 							} else {
-								beforeClose = buf;
+								this.tagBeforeClose = tagBeforeClose = buf;
 								buf = '';
 							}
 							break;
 						default:
 							if (reSpace.test(c)) {
-								if (beforeClose) {
-									tagNameSlash = beforeClose;
-									beforeClose = void 0;
+								if (tagBeforeClose) {
+									this.tagNameSlash = tagNameSlash = tagBeforeClose;
+									this.tagBeforeClose = tagBeforeClose = void 0;
 									state = st_TAG_NAMED_SELFCLOSE;
 								} else {
 									ctag.name = buf;
@@ -283,9 +285,9 @@ XMLParser.prototype = {
 									event(ev_tagName, '140');
 								}
 								buf = c;
-							} else if (beforeClose) {
-								buf = beforeClose+'/'+c;
-								beforeClose = void 0;
+							} else if (tagBeforeClose) {
+								buf = tagBeforeClose+'/'+c;
+								this.tagBeforeClose = tagBeforeClose = void 0;
 							} else {
 								buf += c;
 							}
@@ -298,7 +300,7 @@ XMLParser.prototype = {
 							eventEndTag('150');
 							break;
 						case '/':
-							beforeClose = buf;
+							tagBeforeClose = buf;
 							state = st_TAG_NAMED_SELFCLOSE;
 							buf = '';
 							break;
@@ -316,24 +318,24 @@ XMLParser.prototype = {
 				case st_TAG_NAMED_SELFCLOSE:
 					switch (c) {
 						case '>':
-							if (beforeClose) ctag.selfCloseSpace = beforeClose;
+							if (tagBeforeClose) ctag.selfCloseSpace = tagBeforeClose;
 							if (buf) ctag.endSpace = buf;
 							if (tagNameSlash) eventTagNameSlash('155');
 							ctag.selfClose = true;
-							beforeClose = void 0;
+							this.tagBeforeClose = tagBeforeClose = void 0;
 							eventEndTag('160');
 							break;
 						case '/':
 							if (tagNameSlash) {
-								tagNameSlash += '/';
+								this.tagNameSlash = tagNameSlash += '/';
 								eventTagNameSlash('165');
-							} else if (beforeClose) {
+							} else if (tagBeforeClose) {
 								this.currentAttr = cattr = {};
 								cattr.startSpace = beforeClose;
 								cattr.name = c;
 								eventTagAttr('170');
 							}
-							beforeClose = buf;
+							this.tagBeforeClose = tagBeforeClose = buf;
 							buf = '';
 							break;
 						default:
@@ -341,7 +343,7 @@ XMLParser.prototype = {
 								buf += c;
 							} else {
 								if (tagNameSlash) {
-									tagNameSlash += '/';
+									this.tagNameSlash = tagNameSlash += '/';
 									eventTagNameSlash('175');
 								}
 								state = st_ATTR_NAME;
@@ -410,7 +412,7 @@ XMLParser.prototype = {
 						case '"':
 						case '\'':
 							cattr.valueSpace = buf;
-							cattr.quotes = quoteChar = c;
+							this.attrQuoteChar = cattr.quotes = attrQuoteChar = c;
 							state = st_ATTR_VALUE_QUOTED;
 							buf = '';
 							break;
@@ -444,8 +446,8 @@ XMLParser.prototype = {
 					break;
 				case st_ATTR_VALUE_QUOTED:
 					switch (c) {
-						case quoteChar:
-							quoteChar = void 0;
+						case attrQuoteChar:
+							this.attrQuoteChar = attrQuoteChar = void 0;
 							cattr.value = buf;
 							buf = '';
 							state = st_TAG_NAMED;
