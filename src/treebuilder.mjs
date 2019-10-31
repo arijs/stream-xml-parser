@@ -37,8 +37,8 @@ var events = {
 			this.closeTagMatch = null;
 		}
 	},
-	text: function(text) {
-		this.element.childText(this.currentScope.tag, text);
+	text: function(ev) {
+		this.element.childText(this.currentScope.tag, ev.text);
 	}
 };
 

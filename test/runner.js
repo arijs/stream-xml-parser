@@ -19,8 +19,13 @@ function recursivePrint(tree, max, pre) {
 		} else if (max == 0) {
 			console.log(pre+'tag '+rip, ri);
 		} else {
+			var ric = ri.children;
 			console.log(pre+'tag '+rip, ri.name, ri.attrs, ri.stats);
-			recursivePrint(ri.children, max-1, pre+'- ');
+			if (ric) {
+				recursivePrint(ric, max-1, pre+'- ');
+			} else {
+				console.error(ri);
+			}
 		}
 	}
 }
