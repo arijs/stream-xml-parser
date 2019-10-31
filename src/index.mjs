@@ -300,7 +300,7 @@ XMLParser.prototype = {
 							eventEndTag('150');
 							break;
 						case '/':
-							tagBeforeClose = buf;
+							this.tagBeforeClose = tagBeforeClose = buf;
 							state = st_TAG_NAMED_SELFCLOSE;
 							buf = '';
 							break;
