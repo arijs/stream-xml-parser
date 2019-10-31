@@ -54,9 +54,28 @@ rs.on('data', function(text) {
 }
 
 function parseTree(fpath, callback) {
+	function getSimpleBreadcrumb(p) {
+		var el = tb.element;
+		var par = p.parentScope;
+		return {
+			tag: el.nameGet(p.tag),
+			parentTag: par && el.nameGet(par.tag),
+			parentChildren: par && el.childCount(par.tag)
+		};
+	}
+	function getSimplePath() {
+		var path = tb.path;
+		var list = [];
+		var c = path.length;
+		for (var i = 0; i < c; i++) {
+			list.push(getSimpleBreadcrumb(path[i]));
+		}
+		return list;
+	}
 	var tb = new TreeBuilder(function(ev) {
+		var name = ev.name;
 		treeStats.call(this, ev);
-		switch (ev.name) {
+		switch (name) {
 			case 'tagOpenStart':
 			case 'tagCloseStart':
 			case 'error':
@@ -65,8 +84,8 @@ function parseTree(fpath, callback) {
 				return;
 				// ev = null;
 		}
-		var bc = tb.getSimpleBreadcrumb(ev);
-		console.log(ev, err, tb.getSimplePath(), bc);
+		var bc = getSimpleBreadcrumb(ev);
+		console.log(name, ev.error, getSimplePath(), bc);
 	});
 	var xp = new XMLParser(tb.parserEvent.bind(tb));
 	

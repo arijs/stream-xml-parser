@@ -1,4 +1,4 @@
-import * as elementDefault from './element/default';
+import elementDefault from './element/default';
 
 var slice = Array.prototype.slice;
 
@@ -14,7 +14,7 @@ var events = {
 		}
 	},
 	tagAttribute: function(ev) {
-		this.elementAttrs.add(this.currentScope.tag, ev.attr);
+		this.element.attrsAdd(this.currentScope.tag, ev.attr);
 	},
 	endTag: function(ev) {
 		var breadcrumb = this.currentScope;
@@ -23,7 +23,7 @@ var events = {
 		if (!tagClose) {
 			this.treeEvent('tagOpenEnd', null, ev);
 			this.path.push(breadcrumb);
-			this.elementChildren.addElement(breadcrumb.parentScope.tag, breadcrumb.tag);
+			this.element.childElement(breadcrumb.parentScope.tag, breadcrumb.tag);
 		}
 		if (tagSelfClose) {
 			this.findAndCloseTag(ev);
@@ -38,7 +38,7 @@ var events = {
 		}
 	},
 	text: function(text) {
-		this.elementChildren.addText(this.currentScope.tag, text);
+		this.element.childText(this.currentScope.tag, text);
 	}
 };
 
@@ -61,20 +61,8 @@ function TreeBuilder(opt) {
 	opt = opt || {};
 	this.eventFn = opt instanceof Function
 		? opt : opt.event || noop;
-	var element = opt.element || {};
-	var elInit = element.init;
-	var ElName = element.name;
-	var ElAttrs = element.attrs;
-	var ElChildren = element.children;
-	this.elementInit = elInit instanceof Function
-		? elInit : elementDefault.elementInit;
-	this.elementName = ElName instanceof Function
-		? new ElName : new elementDefault.Name(ElName);
-	this.elementAttrs = ElAttrs instanceof Function
-		? new ElAttrs : new elementDefault.Attributes(ElAttrs);
-	this.elementChildren = ElChildren instanceof Function
-		? new ElChildren : new elementDefault.Children(ElChildren);
-	this.scopeNewChild();
+	this.element = opt.element || elementDefault();
+	this.scopeNewChild(this.element.initRoot());
 	this.root = this.currentScope;
 	this.path = [];
 	this.errors = [];
@@ -93,7 +81,7 @@ TreeBuilder.prototype = {
 			handler.call(this, ev);
 		}
 	},
-	getParserState: function({parser, id: eventId}) {
+	getParserState: function({parser, id}) {
 		return {
 			chr: parser.c,
 			pos: parser.pos,
@@ -104,15 +92,15 @@ TreeBuilder.prototype = {
 			endColumn: parser.endColumn,
 			currentTag: parser.currentTag,
 			currentAttr: parser.currentAttr,
-			eventId: eventId
+			eventId: id
 		};
 	},
-	getEventObject: function(name, error, ev) {
+	getEventObject: function(name, error, event) {
 		var cs = this.currentScope;
 		return {
 			name,
 			error,
-			event: ev,
+			event,
 			tag: cs.tag,
 			parent: cs.parentScope,
 			path: this.path,
@@ -123,40 +111,15 @@ TreeBuilder.prototype = {
 	treeEvent: function(name, error, ev) {
 		this.eventFn(this.getEventObject(name, error, ev));
 	},
-	newElement: function() {
-		var el = this.elementInit();
-		// this.elementName.init(el);
-		// this.elementAttrs.init(el);
-		// this.elementChildren.init(el);
-		return el;
-	},
-	scopeNewChild: function() {
+	scopeNewChild: function(child) {
 		var parent = this.currentScope;
-		var child = this.newElement();
 		this.currentScope = {
 			tag: child,
 			parentScope: parent
 		};
 	},
-	getSimpleBreadcrumb: function(p) {
-		return {
-			tag: this.elementName.get(p.tag),
-			parentTag: this.elementName.get(p.parent.tag),
-			parentChildren: this.elementChildren.getCount(p.parent.tag)
-		};
-	},
-	getSimplePath: function() {
-		var path = this.path;
-		var list = [];
-		var c = path.length;
-		for (var i = 0; i < c; i++) {
-			list.push(this.getSimpleBreadcrumb(path[i]));
-		}
-		return list;
-	},
 	openTag: function(ev) {
-		this.scopeNewChild();
-		this.elementName.set(this.currentScope.tag, ev.tag.name);
+		this.scopeNewChild(this.element.initName(ev.tag.name));
 		this.treeEvent('tagOpenStart', null, ev);
 	},
 	findAndCloseTag: function(ev) {
@@ -194,7 +157,7 @@ TreeBuilder.prototype = {
 		var match, i;
 		for (i = p.length - 1; 0 <= i; i--) {
 			var ptag = p[i];
-			if (this.elementName.get(ptag.tag) === streamTag.name) {
+			if (this.element.nameGet(ptag.tag) === streamTag.name) {
 				match = ptag;
 				break;
 			}

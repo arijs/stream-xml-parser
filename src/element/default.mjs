@@ -1,28 +1,22 @@
 
-export function elementInit() {
-	return {};
-}
-
-export const elementName = (key) => {
-	key || (key='name');
+export default ({
+	keyName='name',
+	keyAttrs='attrs',
+	keyChildren='children'
+} = {}) => {
+	const initName = (name) => ({
+		[keyName]: name,
+		[keyAttrs]: [],
+		[keyChildren]: []
+	});
+	const child = (el, child) => void el[keyChildren].push(child);
 	return {
-		get: (el) => el[key],
-		set: (el, name) => void (el[key] = name)
-	};
-};
-
-export const elementAttributes = (key) => {
-	key || (key='attrs');
-	return {
-		add: (el, attr) => void el[key].push(attr)
-	};
-};
-
-export const elementChildren = (key) => {
-	key || (key='children');
-	return {
-		addElement: (el, child) => void el[key].push(child),
-		addText: (el, text) => void el[key].push(text),
-		getCount: (el) => el[key].length
+		initRoot: initName,
+		initName,
+		nameGet: (el) => el[keyName],
+		attrsAdd: (el, attr) => void el[keyAttrs].push(attr),
+		childElement: child,
+		childText: child,
+		childCount: (el) => el[keyChildren].length
 	};
 };
