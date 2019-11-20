@@ -123,6 +123,35 @@ TreeBuilder.prototype = {
 		this.scopeNewChild(this.element.initName(ev.tag.name));
 		this.treeEvent('tagOpenStart', null, ev);
 	},
+	resolveUnclosedTags: function(unclosed, ev) {
+		var uclen = unclosed.length;
+		while (uclen) {
+			var ucIndex = uclen - 1;
+			var uc = unclosed[ucIndex];
+			var ucTag = uc.tag;
+			var ucCount = this.unclosedTagChildren(ucTag, ucIndex,
+				this.getEventObject('unclosedTagChildren', null, ev)
+			);
+			if (ucCount === void 0) break;
+			var ucParent = uc.parentScope.tag;
+			var ucSiblings = ucParent.children;
+			var ucSelfPos = ucSiblings.indexOf(ucTag);
+			if (-1 === ucSelfPos) {
+				err = new TreeError(
+					'Could not find child tag '+JSON.stringify(ucTag.name)+
+					' in parent tag '+JSON.stringify(ucParent.name)+' list of '+
+					ucSiblings.length+' children',
+					102
+				);
+				this.errors.push(err);
+				this.treeEvent('error', err, ev);
+			} else {
+				var ucLen = ucTag.children.length - ucCount;
+				var ucRem = this.element.childSplice(ucTag, ucCount, ucLen);
+				// this.element.
+			}
+		}
+	},
 	findAndCloseTag: function(ev) {
 		var err;
 		var streamTag = ev.tag;
@@ -130,19 +159,9 @@ TreeBuilder.prototype = {
 		this.closeTagMatch = tagOpen;
 		if (tagOpen) {
 			var breadcrumb = tagOpen.match;
-			var unclosed = tagOpen.unclosedTags;
-			var uclen = unclosed.length;
 			if (streamTag.selfClose) breadcrumb.tag.selfClose = true;
-			while (uclen) {
-				var ucIndex = uclen - 1;
-				var uc = unclosed[ucIndex];
-				var ucTag = uc.tag;
-				var ucCount = this.unclosedTagChildren(ucTag, ucIndex,
-					this.getEventObject('unclosedTagChildren', null, ev)
-				);
-				if (ucCount === void 0) break;
-				ucCount = this.element.childSplice(ucTag, )
-			}
+			var unclosed = this.resolveUnclosedTags(tagOpen.unclosedTags, ev);
+			var uclen = unclosed.length;
 			if (uclen) {
 				err = new TreeError(
 					(streamTag.selfClose ? 'Self closing tag ' : 'Close tag ')+
