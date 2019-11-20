@@ -62,6 +62,7 @@ function TreeBuilder(opt) {
 	this.eventFn = opt instanceof Function
 		? opt : opt.event || noop;
 	this.element = opt.element || elementDefault();
+	this.unclosedTagChildren = opt.unclosedTagChildren || noop;
 	this.scopeNewChild(this.element.initRoot());
 	this.root = this.currentScope;
 	this.path = [];
@@ -132,6 +133,16 @@ TreeBuilder.prototype = {
 			var unclosed = tagOpen.unclosedTags;
 			var uclen = unclosed.length;
 			if (streamTag.selfClose) breadcrumb.tag.selfClose = true;
+			while (uclen) {
+				var ucIndex = uclen - 1;
+				var uc = unclosed[ucIndex];
+				var ucTag = uc.tag;
+				var ucCount = this.unclosedTagChildren(ucTag, ucIndex,
+					this.getEventObject('unclosedTagChildren', null, ev)
+				);
+				if (ucCount === void 0) break;
+				ucCount = this.element.childSplice(ucTag, )
+			}
 			if (uclen) {
 				err = new TreeError(
 					(streamTag.selfClose ? 'Self closing tag ' : 'Close tag ')+
@@ -139,8 +150,7 @@ TreeBuilder.prototype = {
 					streamTag.selfClose ? 101 : 100
 				);
 				this.errors.push(err);
-				this.treeEvent('error', err, ev);
-				// @TODO this.resolveUnclosedTags(breadcrumb, unclosed);
+				this.treeEvent('unclosedTags', err, ev);
 			}
 			this.treeEvent('tagCloseStart', null, ev);
 		} else {
@@ -149,7 +159,7 @@ TreeBuilder.prototype = {
 				102
 			);
 			this.errors.push(err);
-			this.treeEvent('error', err, ev);
+			this.treeEvent('unopenedTag', err, ev);
 		}
 	},
 	findTagOpen: function(streamTag) {
@@ -164,7 +174,7 @@ TreeBuilder.prototype = {
 		}
 		if (match) return {
 			match: match,
-			index: i,
+			pathIndex: i,
 			unclosedTags: p.slice(i+1)
 		};
 	},

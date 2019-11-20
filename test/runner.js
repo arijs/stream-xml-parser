@@ -1,4 +1,5 @@
 var fs = require('fs');
+var util = require('util');
 var XMLParser = require('..');
 var TreeBuilder = XMLParser.TreeBuilder;
 var treeStats = XMLParser.treeStats;
@@ -83,7 +84,18 @@ function parseTree(fpath, callback) {
 		switch (name) {
 			case 'tagOpenStart':
 			case 'tagCloseStart':
+			case 'unopenedTag':
 			case 'error':
+				break;
+			case 'unclosedTags':
+				var tc = ev.tagClose;
+				var utags = tc.unclosedTags;
+				console.log('ev.tagClose.index '+tc.pathIndex);
+				console.log('closed tag', tc.match);
+				for (var i = 0; i < utags.length; i++) {
+					console.log('open tag '+i, utags[i].tag);
+					console.log('open tag parent '+i, utags[i].parentScope);
+				}
 				break;
 			default:
 				return;

@@ -17,6 +17,7 @@ export default ({
 		attrsAdd: (el, attr) => void el[keyAttrs].push(attr),
 		childElement: child,
 		childText: child,
-		childCount: (el) => el[keyChildren].length
+		childCount: (el) => el[keyChildren].length,
+		childSplice: (el, index, remove, ...add) => el[keyChildren].splice(index, remove, ...add)
 	};
 };
