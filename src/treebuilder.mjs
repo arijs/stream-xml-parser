@@ -32,7 +32,7 @@ var events = {
 			var tagOpen = this.closeTagMatch;
 			var breadcrumbClose = tagOpen.match;
 			this.treeEvent('tagCloseEnd', null, ev);
-			this.path = this.path.slice(0, tagOpen.index);
+			this.path = this.path.slice(0, tagOpen.pathIndex);
 			this.currentScope = breadcrumbClose.parentScope;
 			this.closeTagMatch = null;
 		}
@@ -149,8 +149,10 @@ TreeBuilder.prototype = {
 				var ucLen = ucTag.children.length - ucCount;
 				var ucRem = this.element.childSplice(ucTag, ucCount, ucLen);
 				// this.element.
+				throw new Error('@TODO: Not implemented');
 			}
 		}
+		return unclosed;
 	},
 	findAndCloseTag: function(ev) {
 		var err;
