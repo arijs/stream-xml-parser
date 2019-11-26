@@ -82,24 +82,25 @@ function parseTree(fpath, callback) {
 		var name = ev.name;
 		treeStats.call(this, ev);
 		switch (name) {
+			// case 'tagInit':
 			case 'tagOpenStart':
 			case 'tagCloseStart':
 			case 'unopenedTag':
 			case 'error':
 				break;
 			case 'unclosedTags':
+			case 'tagCloseEnd':
 				var tc = ev.tagClose;
 				var utags = tc.unclosedTags;
-				console.log('ev.tagClose.index '+tc.pathIndex);
+				var isRoot = tc.match.parentScope === ev.builder.root;
+				console.log('= '+(isRoot ? 'ROOT:' : '')+name+' ev.tagClose.index '+tc.pathIndex);
 				console.log('closed tag', tc.match);
 				for (var i = 0; i < utags.length; i++) {
 					console.log('open tag '+i, utags[i].tag);
 					console.log('open tag parent '+i, utags[i].parentScope);
 				}
 				break;
-			default:
-				return;
-				// ev = null;
+			default: return;
 		}
 		var bc = getSimpleBreadcrumb(ev);
 		console.log(name, ev.error, getSimplePath(), bc);
@@ -150,4 +151,8 @@ module.exports.selfClose = function() {
 
 module.exports.treeBuilder = function() {
 	return parseTree(__dirname+'/examples/simple.xml');
+};
+
+module.exports.sumario = function() {
+	return parseTree(__dirname+'/examples/sumario.html');
 };
