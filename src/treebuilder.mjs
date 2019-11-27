@@ -139,17 +139,19 @@ TreeBuilder.prototype = {
 			if (-1 === ucSelfPos) {
 				err = new TreeError(
 					'Could not find child tag '+JSON.stringify(ucTag.name)+
-					' in parent tag '+JSON.stringify(ucParent.name)+' list of '+
-					ucSiblings.length+' children',
+					' in parent tag '+JSON.stringify(ucParent.name)+
+					' list of '+ucSiblings.length+' children',
 					102
 				);
 				this.errors.push(err);
 				this.treeEvent('error', err, ev);
+				break;
 			} else {
-				var ucLen = ucTag.children.length - ucCount;
-				var ucRem = this.element.childSplice(ucTag, ucCount, ucLen);
-				// this.element.
-				throw new Error('@TODO: Not implemented');
+				var ucRemCount = ucTag.children.length - ucCount;
+				var ucRem = this.element.childSplice(ucTag, ucCount, ucRemCount);
+				this.element.childSplice(ucParent, ucSelfPos+1, ucRem);
+				unclosed.pop();
+				uclen--;
 			}
 		}
 		return unclosed;
