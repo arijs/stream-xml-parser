@@ -38,6 +38,7 @@ var events = {
 		}
 	},
 	text: function(ev) {
+		this.treeEvent('text', null, ev);
 		this.element.childText(this.currentScope.tag, ev.text);
 	}
 };
@@ -67,6 +68,7 @@ function TreeBuilder(opt) {
 	this.root = this.currentScope;
 	this.path = [];
 	this.errors = [];
+	this.parserEvent = this.parserEvent.bind(this);
 }
 TreeBuilder.prototype = {
 	constructor: TreeBuilder,
@@ -103,6 +105,7 @@ TreeBuilder.prototype = {
 			error,
 			event,
 			tag: cs.tag,
+			text: event.text,
 			parent: cs.parentScope,
 			path: this.path,
 			tagClose: this.closeTagMatch,
