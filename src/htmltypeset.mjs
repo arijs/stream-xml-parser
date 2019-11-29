@@ -8,7 +8,8 @@ function HTMLTypeset() {
 		fontBold: false,
 		fontItalic: false,
 		lineLeading: 15,
-		paragraphLeading: 25
+		paragraphLeading: 25,
+		tolerance: void 0
 	};
 	this.scopeReset();
 	this.treeEvent = this.treeEvent.bind(this);
@@ -30,6 +31,7 @@ HTMLTypeset.prototype = {
 		this.currentParagraph = {
 			leading: s.lineLeading,
 			paragraphLeading: s.paragraphLeading,
+			tolerance: s.tolerance,
 			spans: []
 		};
 	},
@@ -81,7 +83,8 @@ HTMLTypeset.prototype = {
 			fontBold: s.fontBold,
 			fontItalic: s.fontItalic,
 			lineLeading: s.lineLeading,
-			paragraphLeading: s.paragraphLeading
+			paragraphLeading: s.paragraphLeading,
+			tolerance: s.tolerance
 		};
 		this.pathScope.push(this.currentScope);
 	},
@@ -101,6 +104,7 @@ HTMLTypeset.prototype = {
 		cs.fontItalic = null != italic ? Boolean(italic) : p.fontItalic;
 		cs.lineLeading = p.lineLeading;
 		cs.paragraphLeading = p.paragraphLeading;
+		cs.tolerance = p.tolerance;
 	},
 	treeTagOpen: function(tagName, tag) {
 		this.scopePush(tag || tagName);
