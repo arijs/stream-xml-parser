@@ -18,6 +18,6 @@ export default ({
 		childElement: child,
 		childText: child,
 		childCount: (el) => el[keyChildren].length,
-		childSplice: (el, index, remove, add) => el[keyChildren].splice(index, remove, ...[].concat(add || []))
+		childSplice: (el, index, remove, add) => el[keyChildren].splice(index, remove, ...(add || []))
 	};
 };

@@ -89,7 +89,7 @@ function parseTree(fpath, callback) {
 			case 'error':
 				break;
 			case 'unclosedTags':
-			// case 'tagCloseEnd':
+			case 'tagCloseEnd':
 				var tc = ev.tagClose;
 				var utags = tc.unclosedTags;
 				var isRoot = tc.match.parentScope === ev.builder.root;
@@ -97,7 +97,7 @@ function parseTree(fpath, callback) {
 				console.log('closed tag', tc.match);
 				for (var i = 0; i < utags.length; i++) {
 					console.log('open tag '+i, utags[i].tag);
-					console.log('open tag parent '+i, utags[i].parentScope);
+					// console.log('open tag parent '+i, utags[i].parentScope);
 				}
 				break;
 			default: return;
