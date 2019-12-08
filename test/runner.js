@@ -62,19 +62,19 @@ rs.on('data', function(text) {
 function parseTree(fpath, callback) {
 	function getSimpleBreadcrumb(p) {
 		var el = tb.element;
-		var par = p.parentScope;
+		var par = p.parentScope || p.parent;
 		return {
 			tag: el.nameGet(p.tag),
 			parentTag: par && el.nameGet(par.tag),
 			parentChildren: par && el.childCount(par.tag)
 		};
 	}
-	function getSimplePath() {
-		var path = tb.path;
+	function getSimplePath(ev) {
+		var path = ev.path;
 		var list = [];
 		var c = path.length;
 		for (var i = 0; i < c; i++) {
-			list.push(getSimpleBreadcrumb(path[i]));
+			list.push(getSimpleBreadcrumb(path[i]).tag);
 		}
 		return list;
 	}
@@ -89,7 +89,7 @@ function parseTree(fpath, callback) {
 			case 'error':
 				break;
 			case 'unclosedTags':
-			case 'tagCloseEnd':
+			// case 'tagCloseEnd':
 				var tc = ev.tagClose;
 				var utags = tc.unclosedTags;
 				var isRoot = tc.match.parentScope === ev.builder.root;
@@ -103,8 +103,13 @@ function parseTree(fpath, callback) {
 			default: return;
 		}
 		var bc = getSimpleBreadcrumb(ev);
-		console.log(name, ev.error, getSimplePath(), bc);
+		console.log(name, ev.error, getSimplePath(ev), bc);
 	});
+	tb.unclosedTagChildren = function(tag, index, ev){
+		console.log('~ unclosedTag', index, getSimplePath(ev));
+		console.log(tag);
+		return 0;
+	};
 	var xp = new XMLParser(tb.parserEvent.bind(tb));
 	
 	// var fpath = '../examples/not-pretty.xml';

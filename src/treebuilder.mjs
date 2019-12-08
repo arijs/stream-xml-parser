@@ -151,10 +151,14 @@ TreeBuilder.prototype = {
 				break;
 			} else {
 				var ucRemCount = ucTag.children.length - ucCount;
-				var ucRem = this.element.childSplice(ucTag, ucCount, ucRemCount);
-				this.element.childSplice(ucParent, ucSelfPos+1, ucRem);
+				var ucRem = this.element.childSplice(ucTag, ucCount, ucRemCount, []);
+				this.element.childSplice(ucParent, ucSelfPos+1, 0, ucRem);
+				this.treeEvent('tagCloseStart', null, ev);
+				this.treeEvent('tagCloseEnd', null, ev);
 				unclosed.pop();
 				uclen--;
+				this.path.pop();
+				this.currentScope = this.currentScope.parentScope;
 			}
 		}
 		return unclosed;
