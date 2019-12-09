@@ -72,19 +72,14 @@ HTMLTypeset.prototype = {
 		var cs = this.currentScope;
 		return cs && cs.parent || this.rootStyle;
 	},
-	scopePush: function (tag) {
-		var s = this.currentScope || this.rootStyle;
+	scopePush: function (tag, style) {
+		var scope = this.currentScope || this.rootStyle;
 		this.currentScope = {
+			...scope,
+			...style,
 			tagOpen: tag,
 			tagClose: null,
-			parent: this.currentScope,
-			fontFace: s.fontFace,
-			fontSize: s.fontSize,
-			fontBold: s.fontBold,
-			fontItalic: s.fontItalic,
-			lineLeading: s.lineLeading,
-			paragraphLeading: s.paragraphLeading,
-			tolerance: s.tolerance
+			parent: this.currentScope
 		};
 		this.pathScope.push(this.currentScope);
 	},
@@ -97,22 +92,12 @@ HTMLTypeset.prototype = {
 		this.currentScope = void 0;
 		this.pathScope = [];
 	},
-	mergeStyle: function (bold, italic) {
-		var p = this.scopeParent();
-		var cs = this.currentScope;
-		cs.fontBold = null != bold ? Boolean(bold) : p.fontBold;
-		cs.fontItalic = null != italic ? Boolean(italic) : p.fontItalic;
-		cs.lineLeading = p.lineLeading;
-		cs.paragraphLeading = p.paragraphLeading;
-		cs.tolerance = p.tolerance;
-	},
 	treeTagOpen: function(tagName, tag) {
-		this.scopePush(tag || tagName);
+		var style = {};
+		if (this.reBold.test(tagName)) style.fontBold = true;
+		if (this.reItalic.test(tagName)) style.fontItalic = true;
+		this.scopePush(tag || tagName, style);
 		if (this.reInline.test(tagName)) {
-			this.mergeStyle(
-				this.reBold.test(tagName) || null,
-				this.reItalic.test(tagName) || null
-			);
 			this.pushSpan();
 		} else {
 			this.pushParagraph();
