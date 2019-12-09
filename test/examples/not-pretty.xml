@@ -5,8 +5,8 @@
 	attrib = 
 	"blorg"       >
 	Does this belong to slurm or else?
-	<another-tag that="is incognito"/>
-	Does that belong to slurm or else?
+	<another-tag that="is incognito">
+	Does that belong to slurm or else or another-tag?
 	</else><!-- COMMENT!
 	
 --><![CDATA[processing...]]>  <selfclosing tag="blr>&quot;"/> a bit down here</root>

@@ -1,4 +1,5 @@
 var fs = require('fs');
+var util = require('util');
 var XMLParser = require('..');
 var TreeBuilder = XMLParser.TreeBuilder;
 var treeStats = XMLParser.treeStats;
@@ -61,19 +62,19 @@ rs.on('data', function(text) {
 function parseTree(fpath, callback) {
 	function getSimpleBreadcrumb(p) {
 		var el = tb.element;
-		var par = p.parentScope;
+		var par = p.parentScope || p.parent;
 		return {
 			tag: el.nameGet(p.tag),
 			parentTag: par && el.nameGet(par.tag),
 			parentChildren: par && el.childCount(par.tag)
 		};
 	}
-	function getSimplePath() {
-		var path = tb.path;
+	function getSimplePath(ev) {
+		var path = ev.path;
 		var list = [];
 		var c = path.length;
 		for (var i = 0; i < c; i++) {
-			list.push(getSimpleBreadcrumb(path[i]));
+			list.push(getSimpleBreadcrumb(path[i]).tag);
 		}
 		return list;
 	}
@@ -81,17 +82,34 @@ function parseTree(fpath, callback) {
 		var name = ev.name;
 		treeStats.call(this, ev);
 		switch (name) {
+			// case 'tagInit':
 			case 'tagOpenStart':
 			case 'tagCloseStart':
+			case 'unopenedTag':
 			case 'error':
 				break;
-			default:
-				return;
-				// ev = null;
+			case 'unclosedTags':
+			case 'tagCloseEnd':
+				var tc = ev.tagClose;
+				var utags = tc.unclosedTags;
+				var isRoot = tc.match.parentScope === ev.builder.root;
+				console.log('= '+(isRoot ? 'ROOT:' : '')+name+' ev.tagClose.index '+tc.pathIndex);
+				console.log('closed tag', tc.match);
+				for (var i = 0; i < utags.length; i++) {
+					console.log('open tag '+i, utags[i].tag);
+					// console.log('open tag parent '+i, utags[i].parentScope);
+				}
+				break;
+			default: return;
 		}
 		var bc = getSimpleBreadcrumb(ev);
-		console.log(name, ev.error, getSimplePath(), bc);
+		console.log(name, ev.error, getSimplePath(ev), bc);
 	});
+	tb.unclosedTagChildren = function(tag, index, ev){
+		console.log('~ unclosedTag', index, getSimplePath(ev));
+		console.log(tag);
+		return 0;
+	};
 	var xp = new XMLParser(tb.parserEvent.bind(tb));
 	
 	// var fpath = '../examples/not-pretty.xml';
@@ -138,4 +156,8 @@ module.exports.selfClose = function() {
 
 module.exports.treeBuilder = function() {
 	return parseTree(__dirname+'/examples/simple.xml');
+};
+
+module.exports.sumario = function() {
+	return parseTree(__dirname+'/examples/sumario.html');
 };

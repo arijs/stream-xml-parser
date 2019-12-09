@@ -1,8 +1,10 @@
+import path from 'path';
 // import resolve from 'rollup-plugin-node-resolve';
 // import commonjs from 'rollup-plugin-commonjs';
 import { uglify } from 'rollup-plugin-uglify';
 import minify from 'rollup-plugin-babel-minify';
-import buble from 'rollup-plugin-buble';
+import buble from '@rollup/plugin-buble';
+import inject from '@rollup/plugin-inject';
 import pkg from './package.json';
 
 function beforeExt(name, add) {
@@ -18,7 +20,12 @@ const noMinify = opt && opt.noMinify;
 
 function format(opt, plugin) {
 	if (!(opt.plugins instanceof Array)) opt.plugins = [];
-	opt.plugins.unshift(buble());
+	opt.plugins.unshift(inject({
+		'_ObjectAssign': path.resolve('polyfill/object-assign.mjs')
+	}));
+	opt.plugins.unshift(buble({
+		objectAssign: '_ObjectAssign'
+	}));
 	list.push(opt);
 	if (!noMinify) {
 		var min = Object.assign({}, opt);
