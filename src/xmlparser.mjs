@@ -31,6 +31,7 @@ var ev_tagAttribute = {name:'tagAttribute'};
 var reSpace = /\s/;
 var reCdata = /^\[CDATA\[$/i;
 var lenCdata = 7;
+var echo = x => x;
 
 function XMLParser(opt) {
 	if (opt instanceof Function) {
@@ -40,6 +41,11 @@ function XMLParser(opt) {
 		this.event = opt.event;
 		this.opt = opt;
 	}
+	this.decodeString = opt.decodeString || echo;
+	this.decodeText = opt.decodeText || this.decodeString;
+	this.decodeTagName = opt.decodeTagName || this.decodeString;
+	this.decodeAttrName = opt.decodeAttrName || this.decodeString;
+	this.decodeAttrValue = opt.decodeAttrValue || this.decodeString;
 	this.state = st_TEXT;
 	this.buffer = '';
 }
@@ -57,7 +63,40 @@ XMLParser.prototype = {
 	tagPath: null,
 	currentTag: null,
 	currentAttr: null,
+	decodeString: null,
+	decodeText: null,
+	decodeTagName: null,
+	decodeAttrName: null,
+	decodeAttrValue: null,
 	buffer: null,
+	createAttr: function() {
+		return {
+			startSpace: null,
+			name: null,
+			eqSpace: null,
+			value: null,
+			valueSpace: null,
+			quotes: null
+		};
+	},
+	decodeTag: function(ctag, ev) {
+		var name = ctag.name;
+		if ('string' === typeof name) {
+			name = this.decodeTagName(name, ev);
+		}
+		return {...ctag, name};
+	},
+	decodeAttr: function(cattr, ev) {
+		var name = cattr.name;
+		var value = cattr.value;
+		if ('string' === typeof name) {
+			name = this.decodeAttrName(name, ev);
+		}
+		if ('string' === typeof value) {
+			value = this.decodeAttrValue(value, ev);
+		}
+		return {...cattr, name, value};
+	},
 	write: function(text, final) {
 		function getEndChars(n) {
 			var j = i + 1;
@@ -73,14 +112,18 @@ XMLParser.prototype = {
 			}
 		}
 		function event(ev, id) {
-			eventFn({
+			ev = {
 				name: ev.name,
 				id: id,
 				attr: cattr,
 				tag: ctag,
 				text: buf,
 				parser: self
-			});
+			};
+			if (ctag) ev.tag = self.decodeTag(ctag, ev);
+			if (cattr) ev.attr = self.decodeAttr(cattr, ev);
+			if (buf) ev.text = self.decodeText(buf, ev);
+			eventFn(ev);
 		}
 		function eventEndTag(id, ev_custom) {
 			buf = '';
@@ -309,7 +352,7 @@ XMLParser.prototype = {
 								buf += c;
 							} else {
 								state = st_ATTR_NAME;
-								this.currentAttr = cattr = {};
+								this.currentAttr = cattr = this.createAttr();
 								if (buf) cattr.startSpace = buf;
 								buf = c;
 							}
@@ -330,7 +373,7 @@ XMLParser.prototype = {
 								this.tagNameSlash = tagNameSlash += '/';
 								eventTagNameSlash('165');
 							} else if (tagBeforeClose) {
-								this.currentAttr = cattr = {};
+								this.currentAttr = cattr = this.createAttr();
 								cattr.startSpace = beforeClose;
 								cattr.name = c;
 								eventTagAttr('170');
@@ -347,7 +390,7 @@ XMLParser.prototype = {
 									eventTagNameSlash('175');
 								}
 								state = st_ATTR_NAME;
-								this.currentAttr = cattr = {};
+								this.currentAttr = cattr = this.createAttr();
 								if (buf) cattr.startSpace = buf;
 								buf = c;
 							}
@@ -396,7 +439,7 @@ XMLParser.prototype = {
 									eventTagAttr('220');
 								}
 								state = st_ATTR_NAME;
-								this.currentAttr = cattr = {};
+								this.currentAttr = cattr = this.createAttr();
 								if (buf) cattr.startSpace = buf;
 								buf = c;
 							}
