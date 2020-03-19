@@ -3,6 +3,7 @@ var util = require('util');
 var XMLParser = require('..');
 var TreeBuilder = XMLParser.TreeBuilder;
 var treeStats = XMLParser.treeStats;
+var elementSnabbdom = XMLParser.elementSnabbdom;
 XMLParser = XMLParser.XMLParser;
 
 var slice = Array.prototype.slice;
@@ -21,7 +22,7 @@ function recursivePrint(tree, max, pre) {
 			console.log(pre+'tag '+rip, ri);
 		} else {
 			var ric = ri.children;
-			console.log(pre+'tag '+rip, ri.name, ri.attrs, ri.stats);
+			console.log(pre+'tag '+rip, ri.sel, ri.data, ri.stats);
 			if (ric) {
 				recursivePrint(ric, max-1, pre+'- ');
 			} else {
@@ -78,32 +79,35 @@ function parseTree(fpath, callback) {
 		}
 		return list;
 	}
-	var tb = new TreeBuilder(function(ev) {
-		var name = ev.name;
-		treeStats.call(this, ev);
-		switch (name) {
-			// case 'tagInit':
-			case 'tagOpenStart':
-			case 'tagCloseStart':
-			case 'unopenedTag':
-			case 'error':
-				break;
-			case 'unclosedTags':
-			case 'tagCloseEnd':
-				var tc = ev.tagClose;
-				var utags = tc.unclosedTags;
-				var isRoot = tc.match.parentScope === ev.builder.root;
-				console.log('= '+(isRoot ? 'ROOT:' : '')+name+' ev.tagClose.index '+tc.pathIndex);
-				console.log('closed tag', tc.match);
-				for (var i = 0; i < utags.length; i++) {
-					console.log('open tag '+i, utags[i].tag);
-					// console.log('open tag parent '+i, utags[i].parentScope);
-				}
-				break;
-			default: return;
+	var tb = new TreeBuilder({
+		element: elementSnabbdom(),
+		event: function(ev) {
+			var name = ev.name;
+			treeStats.call(this, ev);
+			switch (name) {
+				// case 'tagInit':
+				case 'tagOpenStart':
+				case 'tagCloseStart':
+				case 'unopenedTag':
+				case 'error':
+					break;
+				case 'unclosedTags':
+				case 'tagCloseEnd':
+					var tc = ev.tagClose;
+					var utags = tc.unclosedTags;
+					var isRoot = tc.match.parentScope === ev.builder.root;
+					console.log('= '+(isRoot ? 'ROOT:' : '')+name+' ev.tagClose.index '+tc.pathIndex);
+					console.log('closed tag', tc.match);
+					for (var i = 0; i < utags.length; i++) {
+						console.log('open tag '+i, utags[i].tag);
+						// console.log('open tag parent '+i, utags[i].parentScope);
+					}
+					break;
+				default: return;
+			}
+			var bc = getSimpleBreadcrumb(ev);
+			console.log(name, ev.error, getSimplePath(ev), bc);
 		}
-		var bc = getSimpleBreadcrumb(ev);
-		console.log(name, ev.error, getSimplePath(ev), bc);
 	});
 	tb.unclosedTagChildren = function(tag, index, ev){
 		console.log('~ unclosedTag', index, getSimplePath(ev));

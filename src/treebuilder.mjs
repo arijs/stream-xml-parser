@@ -1,4 +1,5 @@
-import elementDefault from './element/default';
+import { default as elementDefault } from './element/default';
+import { default as htmlVoidTagMap } from './htmlvoidtagmap';
 
 var slice = Array.prototype.slice;
 
@@ -14,7 +15,7 @@ var events = {
 		}
 	},
 	tagAttribute: function(ev) {
-		this.element.attrsAdd(this.currentScope.tag, ev.attr);
+		this.element.attrsAdd(this.currentScope.tag, ev.attr, ev, this);
 	},
 	endTag: function(ev) {
 		var breadcrumb = this.currentScope;
@@ -23,7 +24,7 @@ var events = {
 		if (!tagClose) {
 			this.treeEvent('tagOpenEnd', null, ev);
 			this.path.push(breadcrumb);
-			this.element.childElement(breadcrumb.parentScope.tag, breadcrumb.tag);
+			this.element.childElement(breadcrumb.parentScope.tag, breadcrumb.tag, ev, this);
 		}
 		if (tagSelfClose) {
 			this.findAndCloseTag(ev);
@@ -39,7 +40,7 @@ var events = {
 	},
 	text: function(ev) {
 		this.treeEvent('text', null, ev);
-		this.element.childText(this.currentScope.tag, ev.text);
+		this.element.childText(this.currentScope.tag, ev.text, ev, this);
 	}
 };
 
@@ -63,7 +64,7 @@ function TreeBuilder(opt) {
 	this.eventFn = opt instanceof Function
 		? opt : opt.event || noop;
 	this.element = opt.element || elementDefault();
-	this.unclosedTagChildren = opt.unclosedTagChildren || noop;
+	this.tagVoidMap = opt.tagVoidMap || htmlVoidTagMap;
 	this.scopeNewChild(this.element.initRoot());
 	this.root = this.currentScope;
 	this.path = [];
@@ -78,6 +79,7 @@ TreeBuilder.prototype = {
 	closeTagMatch: null,
 	path: null,
 	errors: null,
+	tagVoidMap: null,
 	parserEvent: function(ev) {
 		var handler = this.events[ev.name];
 		if (handler) {
@@ -123,18 +125,21 @@ TreeBuilder.prototype = {
 		};
 	},
 	openTag: function(ev) {
-		this.scopeNewChild(this.element.initName(ev.tag.name));
+		this.scopeNewChild(this.element.initName(ev.tag.name, ev, this));
 		this.treeEvent('tagOpenStart', null, ev);
 	},
+	unclosedTagChildren: function(tag, index, ev) {
+		var name = this.element.nameGet(tag, ev, this);
+		name = String(name).toLowerCase();
+		if (this.tagVoidMap[name]) return 0;
+	},	
 	resolveUnclosedTags: function(unclosed, ev) {
 		var uclen = unclosed.length;
 		while (uclen) {
 			var ucIndex = uclen - 1;
 			var uc = unclosed[ucIndex];
 			var ucTag = uc.tag;
-			var ucCount = this.unclosedTagChildren(ucTag, ucIndex,
-				this.getEventObject('unclosedTagChildren', null, ev)
-			);
+			var ucCount = this.unclosedTagChildren(ucTag, ucIndex, ev);
 			if (ucCount === void 0) break;
 			var ucParent = uc.parentScope.tag;
 			var ucSiblings = ucParent.children;
@@ -151,8 +156,8 @@ TreeBuilder.prototype = {
 				break;
 			} else {
 				var ucRemCount = ucTag.children.length - ucCount;
-				var ucRem = this.element.childSplice(ucTag, ucCount, ucRemCount, []);
-				this.element.childSplice(ucParent, ucSelfPos+1, 0, ucRem);
+				var ucRem = this.element.childSplice(ucTag, ucCount, ucRemCount, [], ev, this);
+				this.element.childSplice(ucParent, ucSelfPos+1, 0, ucRem, ev, this);
 				this.treeEvent('tagCloseStart', null, ev);
 				this.treeEvent('tagCloseEnd', null, ev);
 				unclosed.pop();
@@ -166,7 +171,7 @@ TreeBuilder.prototype = {
 	findAndCloseTag: function(ev) {
 		var err;
 		var streamTag = ev.tag;
-		var tagOpen = this.findTagOpen(streamTag);
+		var tagOpen = this.findTagOpen(streamTag, ev);
 		this.closeTagMatch = tagOpen;
 		if (tagOpen) {
 			var breadcrumb = tagOpen.match;
@@ -192,12 +197,12 @@ TreeBuilder.prototype = {
 			this.treeEvent('unopenedTag', err, ev);
 		}
 	},
-	findTagOpen: function(streamTag) {
+	findTagOpen: function(streamTag, ev) {
 		var p = this.path;
 		var match, i;
 		for (i = p.length - 1; 0 <= i; i--) {
 			var ptag = p[i];
-			if (this.element.nameGet(ptag.tag) === streamTag.name) {
+			if (this.element.nameGet(ptag.tag, ev, this) === streamTag.name) {
 				match = ptag;
 				break;
 			}
