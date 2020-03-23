@@ -56,8 +56,16 @@ HTMLTypeset.prototype = {
 			text: ''
 		};
 	},
+	normalizeWhitespace: function(str) {
+		return str.replace(/[ \r\n\t]+/g,' ');
+	},
+	decodeString: function(str) {
+		return str;
+		// this function is meant to be replaced
+		// with a function to decode html entities
+	},
 	processTextCommit: function(text) {
-		return text.replace(/[ \r\n\t]+/g,' ');
+		return this.decodeString(this.normalizeWhitespace(text));
 	},
 	pushSpan: function () {
 		if (!this.currentSpan) return;

@@ -1,0 +1,8 @@
+<SplitPane
+	left={
+		<Contacts />
+	}
+	right={
+		<Chat />
+	}
+/>

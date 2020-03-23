@@ -3,6 +3,8 @@ var util = require('util');
 var XMLParser = require('..');
 var TreeBuilder = XMLParser.TreeBuilder;
 var treeStats = XMLParser.treeStats;
+var treeRender = XMLParser.treeRender;
+var elementDefault = XMLParser.elementDefault;
 var elementSnabbdom = XMLParser.elementSnabbdom;
 XMLParser = XMLParser.XMLParser;
 
@@ -11,20 +13,23 @@ function getStateName(xp) {
 	var s = xp.state;
 	return s && s.name;
 }
-function recursivePrint(tree, max, pre) {
+function recursivePrint(tree, max, pre, elAdapter) {
 	var rc = tree.length;
 	for (var i = 0; i < rc; i++) {
 		var ri = tree[i];
 		var rip = (1+i)+'/'+rc;
-		if (typeof ri === 'string') {
-			console.log(pre+'text '+rip, JSON.stringify(ri));
-		} else if (max == 0) {
-			console.log(pre+'tag '+rip, ri);
+		if (elAdapter.isText(ri)) {
+			console.log(pre+'text '+rip, JSON.stringify(elAdapter.textValueGet(ri)));
+		// } else if (max == 0) {
+		// 	console.log(pre+'tag '+rip, ri);
 		} else {
-			var ric = ri.children;
-			console.log(pre+'tag '+rip, ri.sel, ri.data, ri.stats);
-			if (ric) {
-				recursivePrint(ric, max-1, pre+'- ');
+			var ric = elAdapter.childrenGet(ri);
+			var ria = {};
+			elAdapter.attrsEach(ri, (name, value) => ria[name] = value);
+			console.log(pre+'tag '+rip, elAdapter.nameGet(ri), ria, ri.stats);
+			if (max <= 0) {
+			} else if (ric) {
+				recursivePrint(ric, max-1, pre+'- ', elAdapter);
 			} else {
 				console.error(ri);
 			}
@@ -79,8 +84,9 @@ function parseTree(fpath, callback) {
 		}
 		return list;
 	}
+	var elAdapter = elementDefault();
 	var tb = new TreeBuilder({
-		element: elementSnabbdom(),
+		element: elAdapter,
 		event: function(ev) {
 			var name = ev.name;
 			treeStats.call(this, ev);
@@ -126,9 +132,10 @@ function parseTree(fpath, callback) {
 		xp.end();
 		console.log('finished reading '+fpath, getStateName(xp), JSON.stringify(xp.buffer));
 		var err = tb.errors;
+		var result = tb.root.tag.children;
 		console.log('tb', err.length ? 'Errors' : 'Success', err);
-		recursivePrint(tb.root.tag.children, 2, '');
-		callback instanceof Function && callback();
+		recursivePrint(result, 2, '@ ', elAdapter);
+		callback instanceof Function && callback(err, result, elAdapter, tb, xp);
 	});
 	rs.on('data', function(text) {
 		xp.write(text);
@@ -160,6 +167,23 @@ module.exports.selfClose = function() {
 
 module.exports.treeBuilder = function() {
 	return parseTree(__dirname+'/examples/simple.xml');
+};
+
+module.exports.treeConvert = function() {
+	return parseTree(__dirname+'/examples/simple.xml', function(err, result) {
+		if (err.length) return;
+		var elAdapter = elementSnabbdom();
+		var ctx = {
+			plugins: [
+				treeRender.adapterPluginConvertElement(elAdapter),
+				treeRender.pluginChildren
+			],
+			elAdapter: elementDefault()
+		};
+		result = treeRender.treeRender(result, ctx);
+		console.log('=== converted ===');
+		recursivePrint(result, 2, '$ ', elAdapter);
+	});
 };
 
 module.exports.sumario = function() {

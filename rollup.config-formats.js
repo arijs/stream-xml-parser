@@ -24,7 +24,11 @@ function format(opt, plugin) {
 		'_ObjectAssign': path.resolve('polyfill/object-assign.mjs')
 	}));
 	opt.plugins.unshift(buble({
-		objectAssign: '_ObjectAssign'
+		objectAssign: '_ObjectAssign',
+		transforms: {
+			dangerousForOf: true,
+			...(opt.transforms || {})
+		}
 	}));
 	list.push(opt);
 	if (!noMinify) {

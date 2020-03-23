@@ -1,5 +1,5 @@
-import { default as elementDefault } from './element/default';
-import { default as htmlVoidTagMap } from './htmlvoidtagmap';
+// import { default as elementDefault } from './element/default';
+// import { default as htmlVoidTagMap } from './htmlvoidtagmap';
 
 var slice = Array.prototype.slice;
 
@@ -60,17 +60,22 @@ TreeError.prototype.state = null;
 TreeError.prototype.extras = null;
 
 function TreeBuilder(opt) {
-	opt = opt || {};
-	this.eventFn = opt instanceof Function
-		? opt : opt.event || noop;
-	this.element = opt.element || elementDefault();
-	this.tagVoidMap = opt.tagVoidMap || htmlVoidTagMap;
+	if (opt instanceof Function) opt = {event:opt};
+	if (opt) opt = {...TreeBuilder.optDefault, ...opt};
+	else opt = {...TreeBuilder.optDefault};
+	this.eventFn = opt.event || noop;
+	this.element = opt.element;
+	this.tagVoidMap = opt.tagVoidMap;
 	this.scopeNewChild(this.element.initRoot());
 	this.root = this.currentScope;
 	this.path = [];
 	this.errors = [];
 	this.parserEvent = this.parserEvent.bind(this);
 }
+TreeBuilder.optDefault = {
+	element: null,
+	tagVoidMap: null
+};
 TreeBuilder.prototype = {
 	constructor: TreeBuilder,
 	eventFn: null,

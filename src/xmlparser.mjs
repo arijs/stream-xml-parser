@@ -9,6 +9,7 @@ var st_ATTR_NAMED = {name:'ATTR_NAMED'};
 var st_ATTR_VALUE_START = {name:'ATTR_VALUE_START'};
 var st_ATTR_VALUE_QUOTED = {name:'ATTR_VALUE_QUOTED'};
 var st_ATTR_VALUE_RAW = {name:'ATTR_VALUE_RAW'};
+var st_ATTR_VALUE_CUSTOM = {name:'ATTR_VALUE_CUSTOM'};
 var st_INSTRUCTION = {name:'INSTRUCTION'};
 var st_DECLARATION = {name:'DECLARATION'};
 var st_COMMENT = {name:'COMMENT'};
@@ -32,6 +33,7 @@ var reSpace = /\s/;
 var reCdata = /^\[CDATA\[$/i;
 var lenCdata = 7;
 var echo = x => x;
+var nop = () => {};
 
 function XMLParser(opt) {
 	if (opt instanceof Function) {
@@ -46,12 +48,21 @@ function XMLParser(opt) {
 	this.decodeTagName = opt.decodeTagName || this.decodeString;
 	this.decodeAttrName = opt.decodeAttrName || this.decodeString;
 	this.decodeAttrValue = opt.decodeAttrValue || this.decodeString;
+	var cp = opt.customParser;
+	this.getCustomParser = {
+		attrValue: nop,
+		...cp
+	};
+	this.currentCustomParser = {
+		attrValue: null
+	};
 	this.state = st_TEXT;
 	this.buffer = '';
 }
 
 XMLParser.prototype = {
 	constructor: XMLParser,
+	opt: null,
 	state: null,
 	c: null,
 	pos: 0,
@@ -68,6 +79,8 @@ XMLParser.prototype = {
 	decodeTagName: null,
 	decodeAttrName: null,
 	decodeAttrValue: null,
+	customParser: null,
+	currentCustomParser: null,
 	buffer: null,
 	createAttr: function() {
 		return {
@@ -118,7 +131,8 @@ XMLParser.prototype = {
 				attr: cattr,
 				tag: ctag,
 				text: buf,
-				parser: self
+				parser: self,
+				customParser: self.currentCustomParser
 			};
 			if (ctag) ev.tag = self.decodeTag(ctag, ev);
 			if (cattr) ev.attr = self.decodeAttr(cattr, ev);
@@ -154,6 +168,7 @@ XMLParser.prototype = {
 		var attrQuoteChar = this.attrQuoteChar;
 		var tagBeforeClose = this.tagBeforeClose;
 		var tagNameSlash = this.tagNameSlash;
+		var ccp = this.currentCustomParser;
 		for (var i = 0; i < tlen; i++) {
 			var c = this.c = text[i];
 			pos++;
@@ -464,8 +479,14 @@ XMLParser.prototype = {
 								buf += c;
 							} else {
 								if (buf) cattr.valueSpace = buf;
-								state = stATTR_VALUE_RAW;
-								buf = c;
+								ccp.attrValue = this.getCustomParser.attrValue(c, cattr);
+								if (ccp.attrValue) {
+									state = st_ATTR_VALUE_CUSTOM;
+									buf = '';
+								} else {
+									state = st_ATTR_VALUE_RAW;
+									buf = c;
+								}
 							}
 					}
 					break;
@@ -498,6 +519,16 @@ XMLParser.prototype = {
 							break;
 						default:
 							buf += c;
+					}
+					break;
+				case st_ATTR_VALUE_CUSTOM:
+					buf = ccp.attrValue.push(c, {attr: cattr, i, pos, line, column});
+					if (buf != void 0) {
+						state = st_TAG_NAMED;
+						ccp.attrValue = null;
+						({attr: cattr, i, pos, line, column} = buf);
+						buf = '';
+						if (cattr) eventTagAttr('290');
 					}
 					break;
 			}
