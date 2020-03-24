@@ -1,5 +1,5 @@
 var fs = require('fs');
-var util = require('util');
+// var util = require('util');
 var XMLParser = require('..');
 var TreeBuilder = XMLParser.TreeBuilder;
 var treeStats = XMLParser.treeStats;
@@ -8,7 +8,6 @@ var elementDefault = XMLParser.elementDefault;
 var elementSnabbdom = XMLParser.elementSnabbdom;
 XMLParser = XMLParser.XMLParser;
 
-var slice = Array.prototype.slice;
 function getStateName(xp) {
 	var s = xp.state;
 	return s && s.name;

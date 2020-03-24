@@ -5,7 +5,7 @@ const initName = (name) => ({
 	_id: null,
 	sel: name,
 	data: {},
-	text: null,
+	text: void 0, // Snabbdom requires undefined
 	children: []
 });
 const textNode = (text) => ({text:text});
