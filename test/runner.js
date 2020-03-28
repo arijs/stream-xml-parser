@@ -172,14 +172,11 @@ module.exports.treeConvert = function() {
 	return parseTree(__dirname+'/examples/simple.xml', function(err, result) {
 		if (err.length) return;
 		var elAdapter = elementSnabbdom();
+		var plugin = treeRender.adapterPluginConvertElement(elAdapter);
 		var ctx = {
-			plugins: [
-				treeRender.adapterPluginConvertElement(elAdapter),
-				treeRender.pluginChildren
-			],
 			elAdapter: elementDefault()
 		};
-		result = treeRender.treeRender(result, ctx);
+		result = treeRender.treeRenderPlugin(result, ctx, plugin);
 		console.log('=== converted ===');
 		recursivePrint(result, 2, '$ ', elAdapter);
 	});
