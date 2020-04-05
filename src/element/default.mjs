@@ -18,6 +18,7 @@ export default ({
 		nameGet: (el) => el[keyName],
 		textNode: echo,
 		textValueGet: echo,
+		textValueSet: () => { throw new Error('ElementDefault cannot set text value because the node is the string, replace the node instead'); },
 		attrsAdd: (el, attr) => void el[keyAttrs].push(attr),
 		attrsEach: (el, handler) => {
 			var list = el[keyAttrs];
@@ -31,6 +32,7 @@ export default ({
 		childElement: child,
 		childText: child,
 		childCount: (el) => el[keyChildren].length,
+		childIndexGet: (el, index) => el[keyChildren][index],
 		childSplice: (el, index, remove, add) => el[keyChildren].splice(index, remove, ...(add || [])),
 		childrenGet: (el) => el[keyChildren],
 		childrenSet: (el, children) => el[keyChildren] = children

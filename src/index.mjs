@@ -1,6 +1,7 @@
 import * as treeRender from './treerender';
 import TreeBuilder from './treebuilder';
 import elementDefault from './element/default';
+import elementDom from './element/dom';
 import elementSnabbdom from './element/snabbdom';
 import htmlVoidTagMap from './htmlvoidtagmap';
 
@@ -14,6 +15,7 @@ export {
 	TreeBuilder,
 	treeRender,
 	elementDefault,
+	elementDom,
 	elementSnabbdom,
 	htmlVoidTagMap
 };

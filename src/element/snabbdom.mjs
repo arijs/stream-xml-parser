@@ -59,6 +59,7 @@ export default ({ attrHandler } = {}) => {
 		nameGet: (el) => el._name,
 		textNode,
 		textValueGet: (el) => el.text,
+		textValueSet: (el, text) => void (el.text = text),
 		attrsAdd: attrHandler,
 		attrsEach: (el, handler) => {
 			if (el && !el.data) console.log('ElementSnabbdom data not found', el);
@@ -75,6 +76,7 @@ export default ({ attrHandler } = {}) => {
 		childElement: child,
 		childText: (el, text) => child(el, textNode(text)),
 		childCount: (el) => el.children.length,
+		childIndexGet: (el, index) => el.children[index],
 		childSplice: (el, index, remove, add) => el.children.splice(index, remove, ...(add || [])),
 		childrenGet: (el) => el.children,
 		childrenSet: (el, children) => el.children = children
