@@ -1,6 +1,7 @@
 
 export function treeRenderPlugin(sourceTree, sourceAdapter, ctx, plugin, targetAdapter, createTree) {
 	if (!targetAdapter) targetAdapter = sourceAdapter;
+	// if (!targetTree) targetTree = sourceTree;
 	var targetTree = createTree
 		? targetAdapter.initRoot()
 		: sourceTree;
@@ -52,7 +53,11 @@ export function treeRenderPlugin(sourceTree, sourceAdapter, ctx, plugin, targetA
 export function treeRender(sourceTree, sourceAdapter, ctx, plugins) {
 	var pc = plugins.length, i;
 	for (i = 0; i < pc; i++) {
-		var {plugin, targetAdapter, createTree} = plugins[i];
+		var plugin = plugins[i];
+		var targetAdapter, createTree;
+		if (!(plugin instanceof Function)) {
+			({plugin, targetAdapter, targetTree} = plugin);
+		}
 		sourceTree = treeRenderPlugin(sourceTree, sourceAdapter, ctx, plugin, targetAdapter, createTree);
 		if (targetAdapter) sourceAdapter = targetAdapter;
 	}

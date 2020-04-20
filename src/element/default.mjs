@@ -2,7 +2,10 @@
 export default ({
 	keyName='name',
 	keyAttrs='attrs',
-	keyChildren='children'
+	keyChildren='children',
+	keyText='text',
+	textName='#text',
+	rootName='#document-fragment'
 } = {}) => {
 	const initName = (name) => ({
 		[keyName]: name,
@@ -10,27 +13,27 @@ export default ({
 		[keyChildren]: []
 	});
 	const child = (el, child) => void el[keyChildren].push(child);
-	const echo = (el) => el;
+	const textNode = (text) => ({[keyName]: textName, [keyText]: text});
 	return {
-		isText: (el) => 'string' === typeof el,
-		initRoot: initName,
+		isText: (el) => textName === el[keyName],
+		initRoot: () => initName(rootName),
 		initName,
 		nameGet: (el) => el[keyName],
-		textNode: echo,
-		textValueGet: echo,
-		textValueSet: () => { throw new Error('ElementDefault cannot set text value because the node is the string, replace the node instead'); },
+		textNode: textNode,
+		textValueGet: (el) => el[keyText],
+		textValueSet: (el, text) => el[keyText] = text,
 		attrsAdd: (el, attr) => void el[keyAttrs].push(attr),
 		attrsEach: (el, handler) => {
 			var list = el[keyAttrs];
 			if (!list) console.log('ElementDefault attrs not found', el, keyAttrs);
-			var count = list.length;
+			var count = list && list.length || 0;
 			for (var i = 0; i < count; i++) {
 				var a = list[i];
 				if (handler(a.name, a.value, a, i)) break;
 			}
 		},
 		childElement: child,
-		childText: child,
+		childText: (el, text) => child(el, textNode(text)),
 		childCount: (el) => el[keyChildren].length,
 		childIndexGet: (el, index) => el[keyChildren][index],
 		childSplice: (el, index, remove, add) => el[keyChildren].splice(index, remove, ...(add || [])),
