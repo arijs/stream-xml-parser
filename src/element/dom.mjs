@@ -1,3 +1,4 @@
+import {arrayFrom, arrayConcat} from '../collection';
 
 export default (apiDom) => {
 	const child = (el, child) => void el.appendChild(child);
@@ -21,9 +22,11 @@ export default (apiDom) => {
 		}
 	}
 	const textNode = (text) => apiDom.createTextNode(text);
+	const isFragment = (el) => el.nodeType === apiDom.DOCUMENT_FRAGMENT_NODE;
 	// const splice = Array.prototype.splice;
 	return {
 		isText: (el) => el.nodeType === apiDom.TEXT_NODE,
+		isFragment,
 		initRoot: () => apiDom.createDocumentFragment(),
 		initName: (name) => apiDom.createElement(name),
 		nameGet: (el) => el.nodeName,
@@ -46,6 +49,12 @@ export default (apiDom) => {
 		childIndexGet: (el, index) => el.childNodes[index],
 		childSplice,
 		childrenGet: (el) => el.childNodes,
-		childrenSet: (el, children) => childSplice(el, 0, childCount(el), children)
+		childrenSet: (el, children) => childSplice(el, 0, childCount(el), children),
+		toArray: (el) => {
+			return !el ? [] :
+				isFragment(el) ? arrayFrom(el.childNodes) :
+				el.constructor === apiDom.childNodes.constructor ? arrayFrom(el) :
+				arrayConcat(el);
+		}
 	};
 };

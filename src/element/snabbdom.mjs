@@ -1,3 +1,4 @@
+import {arrayConcat} from '../collection';
 
 const initName = (name) => ({
 	_name: name,
@@ -49,12 +50,14 @@ const attrFn = {
 	attrObject,
 	attrHandlerDefault
 };
+const refFragment = {};
 
 export default ({ attrHandler } = {}) => {
 	attrHandler = (attrHandler || attrHandlerDefault).bind(attrFn);
 	return {
 		isText: (el) => !el.sel && 'string' === typeof el.text,
-		initRoot: initName,
+		isFragment: (el) => el._name === refFragment,
+		initRoot: () => initName(refFragment),
 		initName,
 		nameGet: (el) => el._name,
 		textNode,
@@ -79,6 +82,7 @@ export default ({ attrHandler } = {}) => {
 		childIndexGet: (el, index) => el.children[index],
 		childSplice: (el, index, remove, add) => el.children.splice(index, remove, ...(add || [])),
 		childrenGet: (el) => el.children,
-		childrenSet: (el, children) => el.children = children
+		childrenSet: (el, children) => el.children = children,
+		toArray: arrayConcat,
 	};
 };

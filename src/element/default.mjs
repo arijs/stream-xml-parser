@@ -1,3 +1,4 @@
+import {arrayConcat} from '../collection';
 
 export default ({
 	keyName='name',
@@ -16,6 +17,7 @@ export default ({
 	const textNode = (text) => ({[keyName]: textName, [keyText]: text});
 	return {
 		isText: (el) => textName === el[keyName],
+		isFragment: (el) => el[keyName] === rootName,
 		initRoot: () => initName(rootName),
 		initName,
 		nameGet: (el) => el[keyName],
@@ -38,6 +40,7 @@ export default ({
 		childIndexGet: (el, index) => el[keyChildren][index],
 		childSplice: (el, index, remove, add) => el[keyChildren].splice(index, remove, ...(add || [])),
 		childrenGet: (el) => el[keyChildren],
-		childrenSet: (el, children) => el[keyChildren] = children
+		childrenSet: (el, children) => el[keyChildren] = children,
+		toArray: arrayConcat,
 	};
 };
