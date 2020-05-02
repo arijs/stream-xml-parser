@@ -1,11 +1,13 @@
-import {arrayFrom, arrayConcat} from './collection';
+// import {arrayFrom, arrayConcat} from './collection';
 
 export function treeRenderPlugin(sourceTree, sourceAdapter, ctx, plugin, targetAdapter, createTree) {
 	if (!ctx) ctx = {};
 	if (!targetAdapter) targetAdapter = sourceAdapter;
 	// if (!targetTree) targetTree = sourceTree;
-	var targetTree = createTree
+	var targetTree = createTree === true
 		? targetAdapter.initRoot()
+		: createTree
+		? createTree
 		: sourceTree;
 	// var tc = tree.length;
 	var tc = sourceAdapter.childCount(sourceTree);

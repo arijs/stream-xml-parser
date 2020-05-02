@@ -51,14 +51,17 @@ const attrFn = {
 	attrHandlerDefault
 };
 const refFragment = {};
+const nameComment = '!';
 
 export default ({ attrHandler } = {}) => {
 	attrHandler = (attrHandler || attrHandlerDefault).bind(attrFn);
 	return {
 		isText: (el) => !el.sel && 'string' === typeof el.text,
 		isFragment: (el) => el._name === refFragment,
+		isComment: (el) => el._name === nameComment,
 		initRoot: () => initName(refFragment),
 		initName,
+		initComment: (text = '') => {var el = initName(nameComment); el.text = text; return el},
 		nameGet: (el) => el._name,
 		textNode,
 		textValueGet: (el) => el.text,
@@ -68,12 +71,18 @@ export default ({ attrHandler } = {}) => {
 			if (el && !el.data) console.log('ElementSnabbdom data not found', el);
 			var map = el.data.attrs;
 			var hop = Object.prototype.hasOwnProperty;
-			var i = 0;
 			if (!map) return;
-			for (var k in map) {
-				if (hop.call(map, k))
-				if (handler(k, map[k], null, i++))
-					break;
+			var ctx = {
+				_break: 1 << 0,
+				_remove: 1 << 1
+			};
+			var keys = [], k;
+			for (k in map) if (hop.call(map, k)) keys.push(k);
+			for (var i = 0, count = keys.length; i < count; i++) {
+				k = keys[i];
+				var ret = handler(k, map[k], null, i);
+				if (ret & ctx._remove) delete map[k];
+				if (ret & ctx._break) break;
 			}
 		},
 		childElement: child,

@@ -23,12 +23,15 @@ export default (apiDom) => {
 	}
 	const textNode = (text) => apiDom.createTextNode(text);
 	const isFragment = (el) => el.nodeType === apiDom.DOCUMENT_FRAGMENT_NODE;
+	const isComment = (el) => el.nodeType === apiDom.COMMENT_NODE;
 	// const splice = Array.prototype.splice;
 	return {
 		isText: (el) => el.nodeType === apiDom.TEXT_NODE,
 		isFragment,
+		isComment,
 		initRoot: () => apiDom.createDocumentFragment(),
 		initName: (name) => apiDom.createElement(name),
+		initComment: (text = '') => apiDom.createComment(text),
 		nameGet: (el) => el.nodeName,
 		textNode,
 		textValueGet: (el) => el.nodeValue,
@@ -37,10 +40,16 @@ export default (apiDom) => {
 		attrsEach: (el, handler) => {
 			var list = el.attributes;
 			if (!list) console.log('ElementDom attrs not found', el);
+			var ctx = {
+				_break: 1 << 0,
+				_remove: 1 << 1
+			};
 			var count = list.length;
 			for (var i = 0; i < count; i++) {
 				var a = list[i];
-				if (handler(a.name, a.value, a, i)) break;
+				var ret = handler(a.name, a.value, a, i);
+				if (ret & ctx._remove) el.removeAttribute(a.name);
+				if (ret & ctx._break) break;
 			}
 		},
 		childElement: child,
