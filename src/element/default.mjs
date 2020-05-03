@@ -39,7 +39,7 @@ export default ({
 			};
 			for (var i = 0; i < count; i++) {
 				var a = list[i];
-				var ret = handler(a.name, a.value, a, i);
+				var ret = handler.call(ctx, a.name, a.value, a, i);
 				if (ret & ctx._remove) list.splice(i, 1), i--, count--;
 				if (ret & ctx._break) break;
 			}

@@ -47,7 +47,7 @@ export default (apiDom) => {
 			var count = list.length;
 			for (var i = 0; i < count; i++) {
 				var a = list[i];
-				var ret = handler(a.name, a.value, a, i);
+				var ret = handler.call(ctx, a.name, a.value, a, i);
 				if (ret & ctx._remove) el.removeAttribute(a.name);
 				if (ret & ctx._break) break;
 			}

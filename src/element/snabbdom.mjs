@@ -80,7 +80,7 @@ export default ({ attrHandler } = {}) => {
 			for (k in map) if (hop.call(map, k)) keys.push(k);
 			for (var i = 0, count = keys.length; i < count; i++) {
 				k = keys[i];
-				var ret = handler(k, map[k], null, i);
+				var ret = handler.call(ctx, k, map[k], null, i);
 				if (ret & ctx._remove) delete map[k];
 				if (ret & ctx._break) break;
 			}
