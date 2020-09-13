@@ -115,11 +115,6 @@ function parseTree(fpath, callback) {
 		}
 	});
 	tb.unclosedTagChildren = function(tag, index, ev){
-		if (!ev.path) {
-			console.error('* * * Error * * *');
-			console.error('path not found in event');
-			console.error(arguments);
-		}
 		console.log('~ unclosedTag', index, getSimplePath(ev));
 		console.log(tag);
 		return 0;
