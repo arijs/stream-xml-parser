@@ -1,5 +1,3 @@
-// import { default as elementDefault } from './element/default';
-// import { default as htmlVoidTagMap } from './htmlvoidtagmap';
 
 var slice = Array.prototype.slice;
 
@@ -31,11 +29,15 @@ var events = {
 		}
 		if (tagClose || tagSelfClose) {
 			var tagOpen = this.closeTagMatch;
-			var breadcrumbClose = tagOpen.match;
-			this.treeEvent('tagCloseEnd', null, ev);
-			this.path = this.path.slice(0, tagOpen.pathIndex);
-			this.currentScope = breadcrumbClose.parentScope;
-			this.closeTagMatch = null;
+			// if tagOpen has no value, an error was already fired
+			// in the function findAndCloseTag
+			if (tagOpen) {
+				var breadcrumbClose = tagOpen.match;
+				this.treeEvent('tagCloseEnd', null, ev);
+				this.path = this.path.slice(0, tagOpen.pathIndex);
+				this.currentScope = breadcrumbClose.parentScope;
+				this.closeTagMatch = null;
+			}
 		}
 	},
 	text: function(ev) {

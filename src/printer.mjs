@@ -72,6 +72,22 @@ Printer.prototype = {
 		var tag = '</' + this.encodeTagName(name) + '>';
 		return tag;
 	},
+	printTag: function(node, level) {
+		var nl = this.newLine;
+		var nc = this.elAdapter.childCount(node);
+		var sc = 0 == nc && this.isVoidTag(node);
+		var out = this.printIndent(level);
+		out += this.printTagOpen(node, sc);
+		if (nc > 0) {
+			out += nl + this.print(this.elAdapter.childrenGet(node), level+1);
+			out += this.printIndent(level);
+		}
+		if (!sc) {
+			out += this.printTagClose(node);
+		}
+		out += nl;
+		return out;
+	},
 	textSplitLines: function(text) {
 		return text.split(/\r\n|\n|\r/g);
 	},
@@ -85,7 +101,6 @@ Printer.prototype = {
 	printText: function(ftext, level) {
 		var text = this.textTrim(ftext);
 		text = this.textSplitLines(text);
-		// this.log(JSON.stringify(ftext)+' -> '+JSON.stringify(text));
 		var c = text.length;
 		var nl = this.newLine;
 		var s = '';
@@ -96,25 +111,14 @@ Printer.prototype = {
 		return s;
 	},
 	print: function(tree, level) {
-		var rc = tree.length;
-		var nl = this.newLine;
-		var out = '', nc, sc;
-		for (var i = 0; i < rc; i++) {
-			var ri = tree[i];
-			if (this.elAdapter.isText(ri)) {
-				out += this.printText(this.elAdapter.textValueGet(ri), level);
+		var tc = tree.length;
+		var out = '';
+		for (var i = 0; i < tc; i++) {
+			var node = tree[i];
+			if (this.elAdapter.isText(node)) {
+				out += this.printText(this.elAdapter.textValueGet(node), level);
 			} else {
-				nc = this.elAdapter.childCount(ri);
-				sc = 0 == nc && this.isVoidTag(ri);
-				out += this.printIndent(level);
-				out += this.printTagOpen(ri, sc);
-				if (nc > 0) {
-					out += nl + this.print(this.elAdapter.childrenGet(ri), level+1);
-					out += this.printIndent(level);
-				}
-				if (!sc) {
-					out += this.printTagClose(ri) + nl;
-				}
+				out += this.printTag(node, level);
 			}
 		}
 		return out;
