@@ -190,9 +190,6 @@ module.exports.printer = function() {
 	return parseTree(__dirname+'/examples/simple.xml', function(err, result) {
 		if (err.length) return;
 		var printer = new Printer();
-		printer.log = function() {
-			console.log.apply(console, arguments);
-		};
 		printer.elAdapter = elementDefault();
 		var out = printer.print(result, 0);
 		console.log(out);

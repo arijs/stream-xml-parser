@@ -84,8 +84,8 @@ Printer.prototype = {
 	},
 	printText: function(ftext, level) {
 		var text = this.textTrim(ftext);
-		this.log(JSON.stringify(ftext)+' -> '+JSON.stringify(text));
 		text = this.textSplitLines(text);
+		// this.log(JSON.stringify(ftext)+' -> '+JSON.stringify(text));
 		var c = text.length;
 		var nl = this.newLine;
 		var s = '';
