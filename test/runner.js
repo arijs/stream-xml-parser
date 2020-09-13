@@ -6,6 +6,7 @@ var treeStats = XMLParser.treeStats;
 var treeRender = XMLParser.treeRender;
 var elementDefault = XMLParser.elementDefault;
 var elementSnabbdom = XMLParser.elementSnabbdom;
+var Printer = XMLParser.Printer;
 XMLParser = XMLParser.XMLParser;
 
 function getStateName(xp) {
@@ -183,4 +184,17 @@ module.exports.treeConvert = function() {
 
 module.exports.sumario = function() {
 	return parseTree(__dirname+'/examples/sumario.html');
+};
+
+module.exports.printer = function() {
+	return parseTree(__dirname+'/examples/simple.xml', function(err, result) {
+		if (err.length) return;
+		var printer = new Printer();
+		printer.log = function() {
+			console.log.apply(console, arguments);
+		};
+		printer.elAdapter = elementDefault();
+		var out = printer.print(result, 0);
+		console.log(out);
+	});
 };

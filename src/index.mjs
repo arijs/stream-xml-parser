@@ -9,8 +9,6 @@ TreeBuilder.optDefault.element = elementDefault;
 TreeBuilder.optDefault.tagVoidMap = htmlVoidTagMap;
 
 export { default as XMLParser } from './xmlparser';
-export { default as treeStats } from './treestats';
-export { default as HTMLTypeset } from './htmltypeset';
 export {
 	TreeBuilder,
 	treeRender,
@@ -19,3 +17,6 @@ export {
 	elementSnabbdom,
 	htmlVoidTagMap
 };
+export { default as Printer } from './printer';
+export { default as treeStats } from './treestats';
+export { default as HTMLTypeset } from './htmltypeset';
