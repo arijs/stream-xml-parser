@@ -1,7 +1,8 @@
 import path from 'path';
 // import resolve from 'rollup-plugin-node-resolve';
 // import commonjs from 'rollup-plugin-commonjs';
-import { uglify } from 'rollup-plugin-uglify';
+// import { uglify } from 'rollup-plugin-uglify';
+import { terser } from "rollup-plugin-terser";
 import minify from 'rollup-plugin-babel-minify';
 import buble from '@rollup/plugin-buble';
 import inject from '@rollup/plugin-inject';
@@ -35,7 +36,7 @@ function format(opt, plugin) {
 		var min = Object.assign({}, opt);
 		min.output = Object.assign({}, min.output);
 		min.output.file = beforeExt(min.output.file, '.min');
-		min.plugins = (min.plugins || []).concat([plugin || uglify()]);
+		min.plugins = (min.plugins || []).concat([plugin || terser()]);
 		list.push(min);
 	}
 }

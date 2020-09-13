@@ -21,6 +21,7 @@ export default ({
 		isText: (el) => textName === el[keyName],
 		isFragment: (el) => el[keyName] === rootName,
 		isComment: (el) => el[keyName] === commentName,
+		isChildren: (ch) => ch instanceof Array,
 		initRoot: () => initName(rootName),
 		initName,
 		initComment: (text = '') => (el = initName(commentName), el[keyText] = text, el),

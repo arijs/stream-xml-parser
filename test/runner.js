@@ -115,6 +115,11 @@ function parseTree(fpath, callback) {
 		}
 	});
 	tb.unclosedTagChildren = function(tag, index, ev){
+		if (!ev.path) {
+			console.error('* * * Error * * *');
+			console.error('path not found in event');
+			console.error(arguments);
+		}
 		console.log('~ unclosedTag', index, getSimplePath(ev));
 		console.log(tag);
 		return 0;
@@ -171,14 +176,13 @@ module.exports.treeBuilder = function() {
 module.exports.treeConvert = function() {
 	return parseTree(__dirname+'/examples/simple.xml', function(err, result) {
 		if (err.length) return;
-		var elAdapter = elementSnabbdom();
-		var plugin = treeRender.adapterPluginConvertElement(elAdapter);
-		var ctx = {
-			elAdapter: elementDefault()
-		};
-		result = treeRender.treeRenderPlugin(result, ctx, plugin);
+		var sourceAdapter = elementDefault();
+		var targetAdapter = elementSnabbdom();
+		var plugin = treeRender.adapterPluginConvertElement(targetAdapter);
+		var ctx = {};
+		result = treeRender.treeRenderPlugin(result, sourceAdapter, ctx, plugin);
 		console.log('=== converted ===');
-		recursivePrint(result, 2, '$ ', elAdapter);
+		recursivePrint(result, 2, '$ ', targetAdapter);
 	});
 };
 

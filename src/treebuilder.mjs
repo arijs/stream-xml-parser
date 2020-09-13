@@ -134,7 +134,7 @@ TreeBuilder.prototype = {
 		this.treeEvent('tagOpenStart', null, ev);
 	},
 	unclosedTagChildren: function(tag, index, ev) {
-		var name = this.element.nameGet(tag, ev, this);
+		var name = this.element.nameGet(tag, ev.event, this);
 		name = String(name).toLowerCase();
 		if (this.tagVoidMap[name]) return 0;
 	},	
@@ -144,7 +144,8 @@ TreeBuilder.prototype = {
 			var ucIndex = uclen - 1;
 			var uc = unclosed[ucIndex];
 			var ucTag = uc.tag;
-			var ucCount = this.unclosedTagChildren(ucTag, ucIndex, ev);
+			var ucEv = this.getEventObject('resolveUnclosedTags', null, ev);
+			var ucCount = this.unclosedTagChildren(ucTag, ucIndex, ucEv);
 			if (ucCount === void 0) break;
 			var ucParent = uc.parentScope.tag;
 			var ucSiblings = ucParent.children;

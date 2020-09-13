@@ -24,11 +24,13 @@ export default (apiDom) => {
 	const textNode = (text) => apiDom.createTextNode(text);
 	const isFragment = (el) => el.nodeType === apiDom.DOCUMENT_FRAGMENT_NODE;
 	const isComment = (el) => el.nodeType === apiDom.COMMENT_NODE;
+	const isChildren = (ch) => ch && ch.constructor === apiDom.childNodes.constructor;
 	// const splice = Array.prototype.splice;
 	return {
 		isText: (el) => el.nodeType === apiDom.TEXT_NODE,
 		isFragment,
 		isComment,
+		isChildren,
 		initRoot: () => apiDom.createDocumentFragment(),
 		initName: (name) => apiDom.createElement(name),
 		initComment: (text = '') => apiDom.createComment(text),

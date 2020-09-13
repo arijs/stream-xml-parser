@@ -1,15 +1,24 @@
 // import {arrayFrom, arrayConcat} from './collection';
 
-export function treeRenderPlugin(sourceTree, sourceAdapter, ctx, plugin, targetAdapter, createTree) {
+export function listToNode(list, adapter) {
+	var node = adapter.initRoot();
+	adapter.childrenSet(node, list);
+	return node;
+}
+
+export function treeRenderPlugin(sourceTree, sourceAdapter, ctx, plugin, targetAdapter, createTree, targetTree) {
 	if (!ctx) ctx = {};
 	if (!targetAdapter) targetAdapter = sourceAdapter;
-	// if (!targetTree) targetTree = sourceTree;
-	var targetTree = createTree === true
-		? targetAdapter.initRoot()
-		: createTree
-		? createTree
-		: sourceTree;
-	// var tc = tree.length;
+
+	var sourceArray = sourceAdapter.isChildren(sourceTree);
+	if (sourceArray) sourceTree = listToNode(sourceTree, sourceAdapter);
+
+	if (createTree) targetTree = targetAdapter.initRoot();
+	else if (!targetTree) targetTree = sourceTree;
+	else if (targetAdapter.isChildren(targetTree)) {
+		targetTree = listToNode(targetTree, targetAdapter);
+	}
+
 	var tc = sourceAdapter.childCount(sourceTree);
 	var nodeInput, nodeOutput, arrayOutput, j, jOffset = 0;
 	var {getBreadcrumb: parentBreadcrumb} = ctx;
@@ -30,41 +39,23 @@ export function treeRenderPlugin(sourceTree, sourceAdapter, ctx, plugin, targetA
 		return par ? [...par, last] : [last];
 	};
 	for (j = 0; j < tc; j++) {
-		// node = tree[j];
 		nodeInput = sourceAdapter.childIndexGet(sourceTree, j);
 		ctx.getBreadcrumbLast = getBreadcrumbLast;
 		ctx.getBreadcrumb = getBreadcrumb;
-		nodeOutput = plugin(nodeInput, sourceAdapter, ctx, targetAdapter, createTree);
+		nodeOutput = plugin(nodeInput, sourceAdapter, ctx, targetAdapter, createTree, targetTree);
 		arrayOutput = targetAdapter.toArray(nodeOutput);
-		// if (targetAdapter.isFragment(nodeOutput)) {
-		// 	nodeOutput = targetAdapter.childrenGet(nodeOutput);
-		// 	arrayOutput = arrayFrom(nodeOutput);
-		// } else {
-		// 	arrayOutput = arrayConcat(nodeOutput);
-		// }
-		// if (node instanceof Array) {
-			var nc = arrayOutput.length - 1;
-			// splice.apply(tree, [j, 1, ...node]), j+=nc, tc+=nc;
-			targetAdapter.childSplice(targetTree, j+jOffset, 1, arrayOutput);
-			if (targetTree === sourceTree) {
-				j += nc, tc += nc;
-			} else {
-				jOffset += nc;
-			}
-		// } else if (node) {
-		// 	// tree[j] = node;
-		// 	targetAdapter.childSplice(targetTree, j+jOffset, 1, [node]);
-		// } else {
-		// 	// tree.splice(j, 1), j--, tc--;
-		// 	targetAdapter.childSplice(targetTree, j+jOffset, 1, []);
-		// 	if (targetTree === sourceTree) {
-		// 		j--, tc--;
-		// 	} else {
-		// 		jOffset--;
-		// 	}
-		// }
+		var nc = arrayOutput.length - 1;
+		targetAdapter.childSplice(targetTree, j+jOffset, 1, arrayOutput);
+		if (targetTree === sourceTree) {
+			j += nc, tc += nc;
+		} else {
+			jOffset += nc;
+		}
 	}
 	ctx.getBreadcrumb = parentBreadcrumb;
+	if (sourceArray) {
+		targetTree = targetAdapter.childrenGet(targetTree);
+	}
 	return targetTree;
 }
 
@@ -72,11 +63,11 @@ export function treeRender(sourceTree, sourceAdapter, ctx, plugins) {
 	var pc = plugins.length, i;
 	for (i = 0; i < pc; i++) {
 		var plugin = plugins[i];
-		var targetAdapter, createTree;
+		var targetAdapter, createTree, targetTree;
 		if (!(plugin instanceof Function)) {
-			({plugin, targetAdapter, targetTree} = plugin);
+			({plugin, targetAdapter, createTree, targetTree} = plugin);
 		}
-		sourceTree = treeRenderPlugin(sourceTree, sourceAdapter, ctx, plugin, targetAdapter, createTree);
+		sourceTree = treeRenderPlugin(sourceTree, sourceAdapter, ctx, plugin, targetAdapter, createTree, targetTree);
 		if (targetAdapter) sourceAdapter = targetAdapter;
 	}
 	return sourceTree;
@@ -105,7 +96,8 @@ export function pluginAttr(node, adapter, ctx, attrHandler, resultNode) {
 	return resultNode ? resultNode(node, ctx) : node;
 }
 
-export function pluginConvertElement(node, adapter, ctx, targetAdapter) {
+// plugin(nodeInput, sourceAdapter, ctx, targetAdapter, createTree);
+export function pluginConvertElement(node, adapter, ctx, targetAdapter, createTree) {
 	var nodeTo, children;
 	if (adapter.isText(node)) {
 		nodeTo = targetAdapter.textNode(adapter.textValueGet(node));
@@ -115,8 +107,17 @@ export function pluginConvertElement(node, adapter, ctx, targetAdapter) {
 			if (!attr) attr = {name, value};
 			targetAdapter.attrsAdd(nodeTo, attr);
 		});
-		children = targetAdapter.childrenGet(nodeTo);
-		treeRenderPlugin(node, adapter, ctx, pluginConvertElement, children, targetAdapter);
+		// children = targetAdapter.childrenGet(nodeTo);
+		treeRenderPlugin(node, adapter, ctx, pluginConvertElement, targetAdapter, createTree, nodeTo);
+		// treeRenderPlugin(children, adapter, ctx, pluginConvertElement, targetAdapter, createTree);
+		// treeRenderPlugin(sourceTree, sourceAdapter, ctx, plugin, targetAdapter, createTree) {
 	}
 	return nodeTo;
+}
+
+export function adapterPluginConvertElement(targetAdapter) {
+	return plugin;
+	function plugin(nodeInput, sourceAdapter, ctx, _, createTree) {
+		return pluginConvertElement(nodeInput, sourceAdapter, ctx, targetAdapter, createTree);
+	}
 }

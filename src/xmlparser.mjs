@@ -389,7 +389,7 @@ XMLParser.prototype = {
 								eventTagNameSlash('165');
 							} else if (tagBeforeClose) {
 								this.currentAttr = cattr = this.createAttr();
-								cattr.startSpace = beforeClose;
+								cattr.startSpace = tagBeforeClose;
 								cattr.name = c;
 								eventTagAttr('170');
 							}

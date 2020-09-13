@@ -11,7 +11,7 @@
 	"module": "dist/arijs-stream-xml-parser.esm.js",
 	"module_amd": "dist/arijs-stream-xml-parser.amd.js",
 	"browser": "dist/arijs-stream-xml-parser.iife.js",
-	"devDependencies": {
+	"devDependenciesRem": {
 		"@rollup/plugin-buble": "^0.21.1",
 		"@rollup/plugin-inject": "^4.0.0",
 		"rollup": "^2.2.0",
@@ -26,5 +26,12 @@
 	},
 	"files": [
 		"dist"
-	]
+	],
+	"devDependencies": {
+		"@rollup/plugin-buble": "^0.21.3",
+		"@rollup/plugin-inject": "^4.0.2",
+		"rollup": "^2.26.11",
+		"rollup-plugin-babel-minify": "^10.0.0",
+		"rollup-plugin-terser": "^7.0.2"
+	}
 }
