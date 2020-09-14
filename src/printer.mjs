@@ -72,15 +72,17 @@ Printer.prototype = {
 		var tag = '</' + this.encodeTagName(name) + '>';
 		return tag;
 	},
+	printTagChildren: function(node, level, path) {
+		return this.print(this.elAdapter.childrenGet(node), level, path);
+	},
 	printTag: function(node, level, path) {
 		var nl = this.newLine;
 		var nc = this.elAdapter.childCount(node);
 		var sc = 0 == nc && this.isVoidTag(node);
 		var out = this.printIndent(level);
-		path = path.concat([node]);
 		out += this.printTagOpen(node, sc);
 		if (nc > 0) {
-			out += nl + this.print(this.elAdapter.childrenGet(node), level+1, path);
+			out += nl + this.printTagChildren(node, level+1, path.concat([node]));
 			out += this.printIndent(level);
 		}
 		if (!sc) {
