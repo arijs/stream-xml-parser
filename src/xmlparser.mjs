@@ -11,6 +11,7 @@ var st_ATTR_VALUE_QUOTED = {name:'ATTR_VALUE_QUOTED'};
 var st_ATTR_VALUE_RAW = {name:'ATTR_VALUE_RAW'};
 var st_ATTR_VALUE_CUSTOM = {name:'ATTR_VALUE_CUSTOM'};
 var st_INSTRUCTION = {name:'INSTRUCTION'};
+var st_DECLARATION_START = {name:'DECLARATION_START'};
 var st_DECLARATION = {name:'DECLARATION'};
 var st_COMMENT = {name:'COMMENT'};
 var st_CDATA = {name:'CDATA'};
@@ -30,8 +31,9 @@ var ev_tagName = {name:'tagName'};
 var ev_tagAttribute = {name:'tagAttribute'};
 
 var reSpace = /\s/;
-var reCdata = /^\[CDATA\[$/i;
-var lenCdata = 7;
+var strCdata = '[CDATA[';
+// var reCdata = /^\[CDATA\[$/i;
+// var lenCdata = 7;
 var echo = x => x;
 var nop = () => {};
 
@@ -208,10 +210,10 @@ XMLParser.prototype = {
 							break;
 						case '!':
 							if (buf) ctag.startSpace = buf;
-							ctag.declaration = true;
+							// ctag.declaration = true;
 							buf = '';
-							state = st_DECLARATION;
-							event(ev_startDeclaration, '40');
+							state = st_DECLARATION_START;
+							// event(ev_startDeclaration, '40');
 							break;
 						case '>':
 							ctag.empty = true;
@@ -256,39 +258,63 @@ XMLParser.prototype = {
 							buf += c;
 					}
 					break;
+				case st_DECLARATION_START:
+					switch (c) {
+						case '>':
+							ctag.declaration = true;
+							ctag.text = buf;
+							state = st_TEXT;
+							event(ev_startDeclaration, '61');
+							eventEndTag('62', ev_endDeclaration);
+							break;
+						case '-':
+							if ('' === buf) {
+								buf += c;
+								break;
+							} else if (buf === '-') {
+								ctag.comment = true;
+								buf = '';
+								state = st_COMMENT;
+								event(ev_startComment, '63');
+								break;
+							}
+						default:
+							buf += c;
+							if (buf === strCdata) {
+								ctag.cdata = true;
+								buf = '';
+								state = st_CDATA;
+								event(ev_startCdata, '64');
+							} else if (
+								buf.length < strCdata.length &&
+								strCdata.substr(0, buf.length) === buf
+							) {
+								break;
+							} else {
+								ctag.declaration = true;
+								state = st_DECLARATION;
+								event(ev_startDeclaration, '65');
+								break;
+							}
+					}
+					break;
 				case st_DECLARATION:
 					switch (c) {
 						case '>':
 							ctag.text = buf;
 							eventEndTag('70', ev_endDeclaration);
 							break;
-						case '-':
-							if (getEndChars(2) === '--') {
-								ctag.beforeComment = buf.substr(0, buf.length - 1);
-								ctag.comment = true;
-								buf = '';
-								state = st_COMMENT;
-								event(ev_startComment, '80');
-								break;
-							}
 						default:
 							buf += c;
-							if (buf.length === lenCdata && reCdata.test(buf)) {
-								ctag.cdata = true;
-								buf = '';
-								state = st_CDATA;
-								event(ev_startCdata, '90');
-								break;
-							}
 					}
 					break;
 				case st_COMMENT:
 					switch (c) {
-						case '-':
-							if (getEndChars(2) === '--') {
-								ctag.textComment = buf.substr(0, buf.length - 1);
+						case '>':
+							if (getEndChars(3) === '-->') {
+								ctag.textComment = buf.substr(0, buf.length - 2);
 								buf = '';
-								state = st_DECLARATION;
+								state = st_TEXT;
 								event(ev_endComment, '100');
 								break;
 							}
@@ -298,11 +324,11 @@ XMLParser.prototype = {
 					break;
 				case st_CDATA:
 					switch (c) {
-						case ']':
-							if (getEndChars(2) === ']]') {
-								ctag.textCdata = buf.substr(0, buf.length - 1);
+						case '>':
+							if (getEndChars(3) === ']]>') {
+								ctag.textCdata = buf.substr(0, buf.length - 2);
 								buf = '';
-								state = st_DECLARATION;
+								state = st_TEXT;
 								event(ev_endCdata, '110');
 								break;
 							}

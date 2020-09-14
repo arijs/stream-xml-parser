@@ -72,14 +72,15 @@ Printer.prototype = {
 		var tag = '</' + this.encodeTagName(name) + '>';
 		return tag;
 	},
-	printTag: function(node, level) {
+	printTag: function(node, level, path) {
 		var nl = this.newLine;
 		var nc = this.elAdapter.childCount(node);
 		var sc = 0 == nc && this.isVoidTag(node);
 		var out = this.printIndent(level);
+		path = path.concat([node]);
 		out += this.printTagOpen(node, sc);
 		if (nc > 0) {
-			out += nl + this.print(this.elAdapter.childrenGet(node), level+1);
+			out += nl + this.print(this.elAdapter.childrenGet(node), level+1, path);
 			out += this.printIndent(level);
 		}
 		if (!sc) {
@@ -110,15 +111,16 @@ Printer.prototype = {
 		}
 		return s;
 	},
-	print: function(tree, level) {
+	print: function(tree, level, path) {
 		var tc = tree.length;
 		var out = '';
+		path = path || [];
 		for (var i = 0; i < tc; i++) {
 			var node = tree[i];
 			if (this.elAdapter.isText(node)) {
-				out += this.printText(this.elAdapter.textValueGet(node), level);
+				out += this.printText(this.elAdapter.textValueGet(node), level, path);
 			} else {
-				out += this.printTag(node, level);
+				out += this.printTag(node, level, path);
 			}
 		}
 		return out;

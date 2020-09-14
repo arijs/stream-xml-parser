@@ -42,7 +42,16 @@ function parseFile(fpath, callback) {
 function xpEvent(ev) {
 	var tag = ev.tag;
 	var attr = ev.attr;
-	console.log(xp.c, xp.line, xp.column, xp.endColumn, xp.pos, [ev.name, ev.id].join(':'), tag && tag.name || '', attr && [attr.name, attr.value].join('=') || '');
+	console.log(xp.c, xp.line, xp.column, xp.endColumn, xp.pos,
+		[ev.name, ev.id].join(':'),
+		tag && (
+			'endInstruction' === ev.name ? tag.text :
+			'endDeclaration' === ev.name ? tag.text :
+			'endComment' === ev.name ? tag.textComment :
+			'endCdata' === ev.name ? tag.textCdata :
+			tag.name || ''
+		),
+		attr && [attr.name, attr.value].join('=') || '');
 }
 
 var xp = new XMLParser(xpEvent);
@@ -163,6 +172,10 @@ module.exports.selfCloseStream = function() {
 
 module.exports.selfClose = function() {
 	return parseTree(__dirname+'/examples/self-close.xml');
+};
+
+module.exports.commentStream = function() {
+	return parseFile(__dirname+'/examples/comment.xml');
 };
 
 module.exports.treeBuilder = function() {
