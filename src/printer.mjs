@@ -1,18 +1,25 @@
-import htmlVoidTagMap from './htmlvoidtagmap';
 
 var echo = x => x;
 
 export default function Printer(opt) {
-	this.adapter = opt && opt.adapter;
-	this.indent = opt && opt.indent;
-	this.encodeString = opt && opt.encodeString || echo;
-	this.encodeText = opt && opt.encodeText || this.encodeString;
-	this.encodeTagName = opt && opt.encodeTagName || this.encodeString;
-	this.encodeAttrName = opt && opt.encodeAttrName || this.encodeString;
-	this.encodeAttrValue = opt && opt.encodeAttrValue || this.encodeString;
-	this.selfCloseString = opt && opt.selfCloseString || this.selfCloseString;
-	this.newLine = opt && opt.newLine || this.newLine;
+	if (opt) opt = {...Printer.optDefault, ...opt};
+	else opt = {...Printer.optDefault};
+	this.adapter = opt.adapter;
+	this.indent = opt.indent;
+	this.encodeString = opt.encodeString || echo;
+	this.encodeText = opt.encodeText || this.encodeString;
+	this.encodeTagName = opt.encodeTagName || this.encodeString;
+	this.encodeAttrName = opt.encodeAttrName || this.encodeString;
+	this.encodeAttrValue = opt.encodeAttrValue || this.encodeString;
+	this.selfCloseString = opt.selfCloseString || this.selfCloseString;
+	this.newLine = opt.newLine || this.newLine;
+	this.tagVoidMap = opt.tagVoidMap;
 }
+
+Printer.optDefault = {
+	tagVoidMap: null
+};
+
 Printer.prototype = {
 	constructor: Printer,
 	elAdapter: null,
@@ -24,6 +31,7 @@ Printer.prototype = {
 	encodeAttrValue: null,
 	selfCloseString: ' /',
 	newLine: '\n',
+	tagVoidMap: null,
 	log: function() {},
 	repeat: function(n, c) {
 		var s = '';
@@ -48,7 +56,7 @@ Printer.prototype = {
 	isVoidTag: function(node) {
 		var name = this.elAdapter.nameGet(node);
 		name = String(name || '').toLowerCase();
-		return htmlVoidTagMap[name];
+		return this.tagVoidMap[name];
 	},
 	printAttr: function(name, value) {
 		var attr = this.encodeAttrName(name);

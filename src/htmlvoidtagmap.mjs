@@ -10,7 +10,7 @@ export default {
 	embed:true,// embeds things like flash.
 	frame:true,
 	hr:true,// change in type of content.
-	iframe:true,// frame inside the page.
+	// iframe:true,// frame inside the page. NOT A VOID TAG
 	image:true,
 	img:true,// image.
 	input:true,// input field.
