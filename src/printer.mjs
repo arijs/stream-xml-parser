@@ -83,6 +83,9 @@ Printer.prototype = {
 	printTagChildren: function(node, level, path) {
 		return this.print(this.elAdapter.childrenGet(node), level, path);
 	},
+	printTagChildrenAsync: function(node, level, path, cbPrint) {
+		return this.printAsync(this.elAdapter.childrenGet(node), level, path, cbPrint);
+	},
 	printTag: function(node, level, path) {
 		var nl = this.newLine;
 		var nc = this.elAdapter.childCount(node);
@@ -98,6 +101,28 @@ Printer.prototype = {
 		}
 		out += nl;
 		return out;
+	},
+	printTagAsync: function(node, level, path, cbPrint) {
+		var nc = this.elAdapter.childCount(node);
+		if (nc) {
+			this.printTagChildrenAsync(node, level+1, path.concat([node]), cbChildren.bind(this));
+		} else {
+			cbChildren.call(this);
+		}
+		function cbChildren(err, children) {
+			var nl = this.newLine;
+			var sc = 0 == nc && this.isVoidTag(node);
+			var out = this.printIndent(level);
+			out += this.printTagOpen(node, sc);
+			if (children) {
+				out += nl + children + this.printIndent(level);
+			}
+			if (!sc) {
+				out += this.printTagClose(node);
+			}
+			out += nl;
+			cbPrint(err, out);
+		}
 	},
 	textSplitLines: function(text) {
 		return text.split(/\r\n|\n|\r/g);
@@ -121,6 +146,9 @@ Printer.prototype = {
 		}
 		return s;
 	},
+	printTextAsync: function(ftext, level, path, cbPrint) {
+		return cbPrint(null, this.printText(ftext, level));
+	},
 	print: function(tree, level, path) {
 		var tc = tree.length;
 		var out = '';
@@ -134,5 +162,28 @@ Printer.prototype = {
 			}
 		}
 		return out;
+	},
+	printAsync: function(tree, level, path, cbPrint) {
+		var out = '';
+		path = path || [];
+		cbNext = cbNext.bind(this);
+		return runNext.call(this);
+		function runNext() {
+			if (tree.length) {
+				var node = tree.shift();
+				if (this.elAdapter.isText(node)) {
+					this.printTextAsync(this.elAdapter.textValueGet(node), level, path, cbNext);
+				} else {
+					this.printTagAsync(node, level, path, cbNext);
+				}
+			} else {
+				cbPrint(null, out);
+			}
+		}
+		function cbNext(err, printed) {
+			if (err) return cbPrint(err, out);
+			out += printed;
+			runNext.call(this);
+		}
 	}
 };
