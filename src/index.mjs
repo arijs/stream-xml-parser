@@ -21,4 +21,5 @@ export {
 	Printer
 };
 export { default as treeStats } from './treestats';
+export { default as testList } from './testlist';
 export { default as HTMLTypeset } from './htmltypeset';
