@@ -106,10 +106,11 @@ module.exports = function testPrinterTransform() {
 		html = parser.getResult();
 		err = html.err;
 		if (err) return console.error(err);
+		var elAdapter = html.elAdapter;
 		printer = new Printer();
-		printer.elAdapter = html.elAdapter;
+		printer.elAdapter = elAdapter;
 
-		var am = printerTransform.asyncMatcher(html.elAdapter);
+		var am = printerTransform.asyncMatcher(elAdapter);
 		am.onTransform = function(opt) {
 			printTagPath(opt.path.concat(opt.node));
 		};
@@ -183,7 +184,7 @@ module.exports = function testPrinterTransform() {
 			}
 		});
 
-		transformAsync(html.tree, html.elAdapter, am.transform, function(err, html) {
+		transformAsync(html.tree, elAdapter, am.transform, function(err, html) {
 			console.log(err, html);
 		});
 	});
