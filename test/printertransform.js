@@ -3,15 +3,14 @@ var path = require('path');
 var XMLParser = require('..');
 var printerTransform = XMLParser.printerTransform;
 var Printer = XMLParser.Printer;
-var TreeMatcher = XMLParser.TreeMatcher;
 var getParser = XMLParser.getParser;
 
 var fileOpt = { encoding: 'utf8' };
 
-var printer, tmAppRoot, tmHead, tmJsIndex, tmDocTitle, tmDocDesc;
+var printer;
 
-function transformAsync(tree, elAdapter, callback) {
-	printerTransform.async({
+function transformAsync(tree, elAdapter, transform, callback) {
+	return printerTransform.async({
 		tree, elAdapter, transform, callback
 	});
 }
@@ -90,67 +89,6 @@ function nodeContentAsTree(content, opt) {
 	return elAdapter.childrenGet(frag);
 }
 
-function transform(opt) {
-	var node = opt.node;
-	var path = opt.path;
-	var elAdapter = opt.elAdapter;
-	var cbTransform = opt.callback;
-	var tmResult;
-	printTagPath(path.concat(node));
-
-	tmResult = tmAppRoot.testAll(node, path);
-	if (tmResult.success) {
-		console.log(tmResult);
-		return cbTransform(null, {
-			name: 'comp html',
-			noFormat: true,
-			children: {text: '<div class="app--root">App</div>', noFormat: true}
-		});
-	}
-
-	tmResult = tmHead.testAll(node, path);
-	if (tmResult.success) {
-		console.log(tmResult);
-		return cbTransform(null, {
-			name: 'css links',
-			append: {tree: buildCssLinks(elAdapter)}
-		});
-	}
-
-	tmResult = tmJsIndex.testAll(node, path);
-	if (tmResult.success) {
-		console.log(tmResult);
-		return cbTransform(null, {
-			name: 'comp scripts',
-			after: {text: buildCompScripts(opt), noFormat: true}
-		});
-	}
-
-	tmResult = tmDocTitle.testAll(node, path);
-	if (tmResult.success) {
-		console.log(tmResult);
-		return cbTransform(null, {
-			name: 'document title',
-			noFormat: true,
-			children: {text: 'Replaced Title', noFormat: true}
-		});
-	}
-
-	tmResult = tmDocDesc.testAll(node, path);
-	if (tmResult.success) {
-		console.log(tmResult);
-		return cbTransform(null, {
-			name: 'document description',
-			full: {tree: nodeContentAsTree('Replaced Description from PrinterTransform', opt)}
-		});
-	}
-	// var tma = tmResult && tmResult.attr;
-	// if (tma && tma.rules) {
-	// 	console.log(tma.rules);
-	// }
-	cbTransform();
-}
-
 function printTagPath(path) {
 	var pc = path.length;
 	for (var i = 0; i < pc; i++) {
@@ -170,31 +108,82 @@ module.exports = function testPrinterTransform() {
 		if (err) return console.error(err);
 		printer = new Printer();
 		printer.elAdapter = html.elAdapter;
-		tmAppRoot = TreeMatcher.from({
-			name: 'div',
-			attrs: [['id', 'root'], [null, null, '<0>']],
-			path: ['html', 'body']
-		}, html.elAdapter);
-		tmHead = TreeMatcher.from({
-			name: 'head',
-			path: ['html']
-		}, html.elAdapter);
-		tmJsIndex = TreeMatcher.from({
-			name: 'script',
-			attrs: [['src', '/js/index.js'], [null, null, '<0>']],
-			path: ['html', 'body']
-		}, html.elAdapter);
-		tmDocTitle = TreeMatcher.from({
-			name: 'title',
-			attrs: [[null, null, '<0>']],
-			path: ['html', 'head']
-		}, html.elAdapter);
-		tmDocDesc = TreeMatcher.from({
-			name: 'meta',
-			attrs: [['name', 'description'], ['content', null], [null, null, '<0>']],
-			path: ['html', 'head']
-		}, html.elAdapter);
-		transformAsync(html.tree, html.elAdapter, function(err, html) {
+
+		var am = printerTransform.asyncMatcher(html.elAdapter);
+		am.onTransform = function(opt) {
+			printTagPath(opt.path.concat(opt.node));
+		};
+		am.onTest = function(result, success) {
+			if (success) console.log(result);
+		};
+		am.addRule({
+			matcher: {
+				name: 'div',
+				attrs: [['id', 'root'], [null, null, '<0>']],
+				path: ['html', 'body']
+			},
+			callback: function(opt) {
+				return opt.callback(null, {
+					name: 'comp html',
+					noFormat: true,
+					children: {text: '<div class="app--root">App</div>', noFormat: true}
+				});
+			}
+		});
+		am.addRule({
+			matcher: {
+				name: 'head',
+				path: ['html']
+			},
+			callback: function(opt) {
+				return opt.callback(null, {
+					name: 'css links',
+					append: {tree: buildCssLinks(elAdapter)}
+				});
+			}
+		});
+		am.addRule({
+			matcher: {
+				name: 'script',
+				attrs: [['src', '/js/index.js'], [null, null, '<0>']],
+				path: ['html', 'body']
+			},
+			callback: function(opt) {
+				return opt.callback(null, {
+					name: 'comp scripts',
+					after: {text: buildCompScripts(opt), noFormat: true}
+				});
+			}
+		});
+		am.addRule({
+			matcher: {
+				name: 'title',
+				attrs: [[null, null, '<0>']],
+				path: ['html', 'head']
+			},
+			callback: function(opt) {
+				return opt.callback(null, {
+					name: 'document title',
+					noFormat: true,
+					children: {text: 'Replaced Title', noFormat: true}
+				});
+			}
+		});
+		am.addRule({
+			matcher: {
+				name: 'meta',
+				attrs: [['name', 'description'], ['content', null], [null, null, '<0>']],
+				path: ['html', 'head']
+			},
+			callback: function(opt) {
+				return opt.callback(null, {
+					name: 'document description',
+					full: {tree: nodeContentAsTree('Replaced Description from PrinterTransform', opt)}
+				});
+			}
+		});
+
+		transformAsync(html.tree, html.elAdapter, am.transform, function(err, html) {
 			console.log(err, html);
 		});
 	});

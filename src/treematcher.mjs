@@ -5,7 +5,7 @@ var OBJECT = 'object';
 
 export default TreeMatcher;
 
-function getMatcherFrom(item, elAdapter, opt) {
+export function getMatcherFrom(item, elAdapter, opt) {
 	if (item instanceof TreeMatcher) return item;
 	var tm = new TreeMatcher(elAdapter);
 	if (STRING === typeof item) {

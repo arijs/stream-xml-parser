@@ -1,5 +1,6 @@
 import Printer from './printer';
 import getParser from './getparser';
+import TreeMatcher from './treematcher';
 
 export function printTreeSync({tree, elAdapter, customPrintTag, path, level}) {
 	var printer = new Printer();
@@ -159,4 +160,39 @@ export function async({tree, elAdapter, transform, callback, level}) {
 			cbTag(null, text);
 		}
 	}
+}
+
+export function asyncMatcher(elAdapter) {
+	var rules = [];
+	var api = {
+		addRule: function(opt) {
+			opt.matcher = TreeMatcher.from(opt.matcher, elAdapter, opt.opt);
+			rules.push(opt);
+		},
+		clear: function() {
+			rules = [];
+		},
+		onTransform: function() {},
+		onTest: function() {},
+		isSuccess: function(result) {
+			return result.success;
+		},
+		transform: function(opt) {
+			var node = opt.node;
+			var path = opt.path;
+			var rc = rules.length;
+			api.onTransform(opt);
+			for (var i = 0; i < rc; i++) {
+				var isSuccess = rules[i].isSuccess || api.isSuccess;
+				var result = rules[i].matcher.testAll(node, path);
+				var success = isSuccess(result);
+				api.onTest(result, success, rules[i]);
+				if (success) {
+					return rules[i].callback(opt);
+				}
+			}
+			opt.callback();
+		}
+	};
+	return api;
 }
