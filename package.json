@@ -18,7 +18,8 @@
 		"test": "node test/test.js"
 	},
 	"files": [
-		"dist"
+		"dist",
+		"src"
 	],
 	"devDependencies": {
 		"@rollup/plugin-buble": "^0.21.3",

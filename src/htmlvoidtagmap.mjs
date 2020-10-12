@@ -8,7 +8,7 @@ export default {
 	col:true,
 	command:true,
 	embed:true,// embeds things like flash.
-	frame:true,
+	// frame:true,
 	hr:true,// change in type of content.
 	// iframe:true,// frame inside the page. NOT A VOID TAG
 	image:true,

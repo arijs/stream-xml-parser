@@ -1,6 +1,9 @@
 
 export default testList;
 
+function defaultTestAdapter (x) {
+	return x;
+}
 function defaultGroupListInit () {
 	return [];
 }
@@ -16,20 +19,12 @@ function defaultGroupAdd (group, groupList) {
 function defaultGroupGetCount(group) {
 	return group.matches.length;
 }
-function defaultMatchAdd (test, result, item, group) {
+function defaultMatchAdd (result, item, group, test) {
 	if (group.test !== test) {
 		console.error(test, '!==', group.test);
 		throw new Error('Object "test" in group is not same than "test" added from match');
 	}
 	group.matches.push({result, item});
-}
-function defaultTestMatchesInit (testList, matchesListInit, matchGroupAdd, matchesGroupListInit) {
-	var c = testList.length;
-	var testMatches = matchesGroupListInit();
-	for (var i = 0; i < c; i++) {
-		matchGroupAdd(testList[i], matchesListInit(), testMatches);
-	}
-	return testMatches;
 }
 
 function testList(testList, itemList, {
@@ -37,10 +32,11 @@ function testList(testList, itemList, {
 	groupInit = defaultGroupInit,
 	groupAdd = defaultGroupAdd,
 	groupGetCount = defaultGroupGetCount,
-	matchAdd = defaultMatchAdd
+	matchAdd = defaultMatchAdd,
+	testAdapter = defaultTestAdapter
 } = {}) {
-	var test, item, active, testGroup, testMM, newAttempt, testResult;
-	var activeTest, activeList, activeMatches;
+	var testSrc, test, item, active, testGroup, testResult;
+	var activeTest, activeList, activeMatches, newAttempt;
 	var active = {
 		testList: testList.slice(),
 		itemList: itemList.slice(),
@@ -51,16 +47,16 @@ function testList(testList, itemList, {
 	var attemptsList = [active];
 	var failed = [];
 	var activeCount = 1;
-	// active.matches = testMatchesInit(active.testList, matchesListInit, matchGroupAdd, matchesGroupListInit);
 	while (activeCount) {
 		active = attemptsList[0];
 		activeTest = active.testList;
 		activeList = active.itemList;
 		activeMatches = active.matches;
 		if (!activeTest.length) {
-			return result(0 == activeList.length, 1);
+			return result(0 == activeList.length);
 		}
-		test = activeTest.shift();
+		testSrc = activeTest.shift();
+		test = testAdapter(testSrc);
 		testGroup = active.nextGroup;
 		if (!testGroup) {
 			testGroup = groupInit(test);
@@ -86,7 +82,7 @@ function testList(testList, itemList, {
 			};
 			attemptsList.splice(test.greedy ? 1 : 0, 0, newAttempt);
 			activeCount++;
-			activeTest.unshift(test);
+			activeTest.unshift(testSrc);
 			active.nextGroup = testGroup;
 			active.forked = true;
 			newAttempt = void 0;
@@ -96,14 +92,14 @@ function testList(testList, itemList, {
 		item = activeList.shift();
 		testResult = test.test(item);
 		if (testResult) {
-			matchAdd(test, testResult, item, testGroup);
-			activeTest.unshift(test);
+			matchAdd(testResult, item, testGroup, test, testSrc);
+			activeTest.unshift(testSrc);
 			active.nextGroup = testGroup;
 		} else {
 			failBranch();
 		}
 	}
-	return result(false, 2);
+	return result(false);
 	function failBranch() {
 		failed.push(active);
 		active = null;

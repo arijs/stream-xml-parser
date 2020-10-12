@@ -4,7 +4,7 @@ var echo = x => x;
 export default function Printer(opt) {
 	if (opt) opt = {...Printer.optDefault, ...opt};
 	else opt = {...Printer.optDefault};
-	this.adapter = opt.adapter;
+	this.elAdapter = opt.elAdapter;
 	this.indent = opt.indent;
 	this.encodeString = opt.encodeString || echo;
 	this.encodeText = opt.encodeText || this.encodeString;
