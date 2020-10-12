@@ -172,8 +172,8 @@ export function asyncMatcher(elAdapter) {
 		clear: function() {
 			rules = [];
 		},
-		onTransform: function() {},
 		onTest: function() {},
+		onTestRule: function() {},
 		isSuccess: function(result) {
 			return result.success;
 		},
@@ -181,12 +181,12 @@ export function asyncMatcher(elAdapter) {
 			var node = opt.node;
 			var path = opt.path;
 			var rc = rules.length;
-			api.onTransform(opt);
+			api.onTest(opt);
 			for (var i = 0; i < rc; i++) {
 				var isSuccess = rules[i].isSuccess || api.isSuccess;
 				var result = rules[i].matcher.testAll(node, path);
 				var success = isSuccess(result);
-				api.onTest(result, success, rules[i]);
+				api.onTestRule(result, success, rules[i]);
 				if (success) {
 					return rules[i].callback(opt);
 				}

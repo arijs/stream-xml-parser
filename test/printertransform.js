@@ -111,10 +111,10 @@ module.exports = function testPrinterTransform() {
 		printer.elAdapter = elAdapter;
 
 		var am = printerTransform.asyncMatcher(elAdapter);
-		am.onTransform = function(opt) {
+		am.onTest = function(opt) {
 			printTagPath(opt.path.concat(opt.node));
 		};
-		am.onTest = function(result, success) {
+		am.onTestRule = function(result, success) {
 			if (success) console.log(result);
 		};
 		am.addRule({
