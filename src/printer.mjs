@@ -149,6 +149,27 @@ Printer.prototype = {
 	printTextAsync: function(ftext, level, path, cbPrint) {
 		return cbPrint(null, this.printText(ftext, level));
 	},
+	printComment: function(ftext, level) {
+		return this.printIndent(level) +
+			'<!--' + ftext + '-->\n';
+	},
+	printCommentAsync: function(ftext, level, path, cbPrint) {
+		return cbPrint(null, this.printComment(ftext, level));
+	},
+	printDeclaration: function(ftext, level) {
+		return this.printIndent(level) +
+			'<!' + ftext + '>\n';
+	},
+	printDeclarationAsync: function(ftext, level, path, cbPrint) {
+		return cbPrint(null, this.printDeclaration(ftext, level));
+	},
+	printInstruction: function(ftext, level) {
+		return this.printIndent(level) +
+			'<?' + ftext + '>\n';
+	},
+	printInstructionAsync: function(ftext, level, path, cbPrint) {
+		return cbPrint(null, this.printInstruction(ftext, level));
+	},
 	print: function(tree, level, path) {
 		var tc = tree.length;
 		var out = '';
@@ -157,6 +178,12 @@ Printer.prototype = {
 			var node = tree[i];
 			if (this.elAdapter.isText(node)) {
 				out += this.printText(this.elAdapter.textValueGet(node), level, path);
+			} else if (this.elAdapter.isComment(node)) {
+				out += this.printComment(this.elAdapter.textValueGet(node), level, path);
+			} else if (this.elAdapter.isDeclaration(node)) {
+				out += this.printDeclaration(this.elAdapter.textValueGet(node), level, path);
+			} else if (this.elAdapter.isInstruction(node)) {
+				out += this.printInstruction(this.elAdapter.textValueGet(node), level, path);
 			} else {
 				out += this.printTag(node, level, path);
 			}
@@ -173,6 +200,12 @@ Printer.prototype = {
 				var node = tree.shift();
 				if (this.elAdapter.isText(node)) {
 					this.printTextAsync(this.elAdapter.textValueGet(node), level, path, cbNext);
+				} else if (this.elAdapter.isComment(node)) {
+					this.printCommentAsync(this.elAdapter.textValueGet(node), level, path, cbNext);
+				} else if (this.elAdapter.isDeclaration(node)) {
+					this.printDeclarationAsync(this.elAdapter.textValueGet(node), level, path, cbNext);
+				} else if (this.elAdapter.isInstruction(node)) {
+					this.printInstructionAsync(this.elAdapter.textValueGet(node), level, path, cbNext);
 				} else {
 					this.printTagAsync(node, level, path, cbNext);
 				}

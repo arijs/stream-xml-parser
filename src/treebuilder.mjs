@@ -5,6 +5,78 @@ var events = {
 	startTag: function(ev) {
 		this.treeEvent('tagInit', null, ev);
 	},
+	startInstruction: function(ev) {
+		this.scopeNewChild(TreeBuilder.TAG_INSTRUCTION, ev);
+		this.treeEvent('tagInstructionStart', null, ev);
+	},
+	endInstruction: function(ev) {
+		var cs = this.currentScope;
+		var parent = cs;
+		var tag = this.element.initInstruction(ev.tag.text);
+		if (cs.tag !== TreeBuilder.TAG_INSTRUCTION) {
+			var err = new TreeError(
+				'Current open tag is not an instruction',
+				120,
+				this.getScopeState(ev, tag)
+			);
+			this.errors.push(err);
+			this.treeEvent('error', err, ev);
+		} else {
+			cs.tag = tag;
+			parent = cs.parentScope;
+		}
+		this.element.childElement(parent.tag, tag);
+		this.treeEvent('tagInstructionEnd', null, ev);
+		this.currentScope = parent;
+	},
+	startDeclaration: function(ev) {
+		this.scopeNewChild(TreeBuilder.TAG_DECLARATION, ev);
+		this.treeEvent('tagDeclarationStart', null, ev);
+	},
+	endDeclaration: function(ev) {
+		var cs = this.currentScope;
+		var parent = cs;
+		var tag = this.element.initDeclaration(ev.tag.text);
+		if (cs.tag !== TreeBuilder.TAG_DECLARATION) {
+			var err = new TreeError(
+				'Current open tag is not a declaration',
+				121,
+				this.getScopeState(ev, tag)
+			);
+			this.errors.push(err);
+			this.treeEvent('error', err, ev);
+		} else {
+			cs.tag = tag;
+			parent = cs.parentScope;
+		}
+		this.element.childElement(parent.tag, tag);
+		this.treeEvent('tagDeclarationEnd', null, ev);
+		this.currentScope = parent;
+	},
+	startComment: function(ev) {
+		this.scopeNewChild(TreeBuilder.TAG_COMMENT, ev);
+		this.treeEvent('tagCommentStart', null, ev);
+	},
+	endComment: function(ev) {
+		var cs = this.currentScope;
+		var parent = cs;
+		var tag = this.element.initComment(ev.tag.textComment);
+		if (cs.tag !== TreeBuilder.TAG_COMMENT) {
+			var err = new TreeError(
+				'Current open tag is not a comment',
+				122,
+				this.getScopeState(ev, tag)
+			);
+			this.errors.push(err);
+			this.treeEvent('error', err, ev);
+		} else {
+			cs.tag = tag;
+			parent = cs.parentScope;
+		}
+		this.element.childElement(parent.tag, tag);
+		this.treeEvent('tagCommentEnd', null, ev);
+		this.currentScope = parent;
+	},
 	tagName: function(ev) {
 		if (ev.tag.close) {
 			this.findAndCloseTag(ev);
@@ -78,6 +150,9 @@ TreeBuilder.optDefault = {
 	element: null,
 	tagVoidMap: null
 };
+TreeBuilder.TAG_INSTRUCTION = {tag:'#instruction'};
+TreeBuilder.TAG_DECLARATION = {tag:'#declaration'};
+TreeBuilder.TAG_COMMENT = {tag:'#comment'};
 TreeBuilder.prototype = {
 	constructor: TreeBuilder,
 	eventFn: null,
@@ -121,18 +196,28 @@ TreeBuilder.prototype = {
 			builder: this
 		};
 	},
+	getScopeState: function(evEnd, tagEnd) {
+		var cs = this.currentScope;
+		return {
+			tag: cs.tag,
+			evStart: cs.evStart,
+			evEnd,
+			tagEnd
+		};
+	},
 	treeEvent: function(name, error, ev) {
 		this.eventFn(this.getEventObject(name, error, ev));
 	},
-	scopeNewChild: function(child) {
+	scopeNewChild: function(child, ev) {
 		var parent = this.currentScope;
 		this.currentScope = {
 			tag: child,
+			evStart: ev,
 			parentScope: parent
 		};
 	},
 	openTag: function(ev) {
-		this.scopeNewChild(this.element.initName(ev.tag.name, ev, this));
+		this.scopeNewChild(this.element.initName(ev.tag.name), ev);
 		this.treeEvent('tagOpenStart', null, ev);
 	},
 	unclosedTagChildren: function(tag, index, ev) {
@@ -157,7 +242,7 @@ TreeBuilder.prototype = {
 					'Could not find child tag '+JSON.stringify(ucTag.name)+
 					' in parent tag '+JSON.stringify(ucParent.name)+
 					' list of '+ucSiblings.length+' children',
-					102
+					103
 				);
 				this.errors.push(err);
 				this.treeEvent('error', err, ev);

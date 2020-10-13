@@ -11,7 +11,7 @@ var printer;
 
 function transformAsync(tree, elAdapter, transform, callback) {
 	return printerTransform.async({
-		tree, elAdapter, transform, callback
+		tree, elAdapter, transform, level: -1, callback
 	});
 }
 

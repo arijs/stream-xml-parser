@@ -186,7 +186,7 @@ export function asyncMatcher(elAdapter) {
 				var isSuccess = rules[i].isSuccess || api.isSuccess;
 				var result = rules[i].matcher.testAll(node, path);
 				var success = isSuccess(result);
-				api.onTestRule(result, success, rules[i]);
+				api.onTestRule(result, success, rules[i], opt);
 				if (success) {
 					return rules[i].callback(opt);
 				}
