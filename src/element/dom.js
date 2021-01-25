@@ -64,7 +64,7 @@ export default (apiDom) => {
 		toArray: (el) => {
 			return !el ? [] :
 				isFragment(el) ? arrayFrom(el.childNodes) :
-				el.constructor === apiDom.childNodes.constructor ? arrayFrom(el) :
+				isChildren(el) ? arrayFrom(el) :
 				arrayConcat(el);
 		}
 	};

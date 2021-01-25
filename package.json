@@ -21,11 +21,38 @@
 		"dist",
 		"src"
 	],
+	"exports": {
+		".": {
+			"import": "./dist/arijs-stream-xml-parser.esm.js",
+			"require": "./dist/arijs-stream-xml-parser.cjs.js"
+		},
+		"./src/*": "./src/*"
+	},
+	"keywords": [
+		"xml",
+		"html",
+		"svg",
+		"stream",
+		"parser",
+		"tree",
+		"nodes",
+		"printer",
+		"matcher",
+		"testlist",
+		"build",
+		"transform",
+		"render"
+	],
+	"license": "MIT",
 	"devDependencies": {
 		"@rollup/plugin-buble": "^0.21.3",
 		"@rollup/plugin-inject": "^4.0.2",
+		"@skypack/package-check": "^0.1.0",
+		"dtslint": "^4.0.4",
 		"rollup": "^2.26.11",
 		"rollup-plugin-babel-minify": "^10.0.0",
-		"rollup-plugin-terser": "^7.0.2"
-	}
+		"rollup-plugin-terser": "^7.0.2",
+		"typescript": "^4.0.5"
+	},
+	"types": "./src/index.d.ts"
 }

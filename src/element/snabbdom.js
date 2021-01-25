@@ -53,7 +53,8 @@ const attrFn = {
 const refFragment = {};
 const nameComment = '!';
 
-export default ({ attrHandler } = {}) => {
+// I don't like the default arg below but TS complains if I try "= {}"
+export default ({ attrHandler } = { attrHandler: undefined }) => {
 	attrHandler = (attrHandler || attrHandlerDefault).bind(attrFn);
 	return {
 		isText: (el) => !el.sel && 'string' === typeof el.text,

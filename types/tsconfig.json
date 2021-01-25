@@ -1,0 +1,42 @@
+{
+	"compilerOptions": {
+		"target": "ES2015",
+		"module": "commonjs",
+		"lib": ["es6"],
+		"noEmit": true,
+		"noImplicitAny": false,
+		"noImplicitThis": true,
+		"strictNullChecks": false,
+		"strictFunctionTypes": true,
+		"allowJs": true,
+		"checkJs": true,
+		"listFiles": true,
+		"esModuleInterop": true,
+		"skipLibCheck": true,
+		"forceConsistentCasingInFileNames": true,
+		"baseUrl": ".",
+		"paths": {
+			"@arijs/stream-xml-parser": ["."]
+		}
+	},
+	"$schema": "https://json.schemastore.org/tsconfig",
+	"display": "Recommended",
+	"REM_files": [
+		"src/index.mjs",
+		"src/collection.mjs",
+		"src/getparser.mjs",
+		"src/htmltypeset.mjs",
+		"src/htmlvoidtagmap.mjs",
+		"src/printer.mjs",
+		"src/printertransform.mjs",
+		"src/testlist.mjs",
+		"src/treebuilder.mjs",
+		"src/treematcher.mjs",
+		"src/treerender.mjs",
+		"src/treestats.mjs",
+		"src/xmlparser.mjs",
+		"src/element/default.mjs",
+		"src/element/dom.mjs",
+		"src/element/snabbdom.mjs"
+	]
+}

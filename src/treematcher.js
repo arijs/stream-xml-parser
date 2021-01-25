@@ -11,24 +11,24 @@ export function getMatcherFrom(item, elAdapter, opt) {
 	if (STRING === typeof item) {
 		tm.name(item, opt && opt.name);
 	} else if (item instanceof Array) {
-		if (null != item[0]) {
-			tm.name(item[0], opt && opt.name);
+		if (item[0] instanceof Array) {
+			tm.nameFromArray(item[0], opt && opt.name);
 		}
 		if (item[1] instanceof Array) {
 			tm.attrFromArray(item[1], opt && opt.attrs);
 		}
 		if (item[2] instanceof Array) {
-			tm.path(item[2], opt && opt.path);
+			tm.pathFromArray(item[2], opt && opt.path);
 		}
 	} else if (OBJECT === typeof item) {
-		if (null != item.name) {
-			tm.name(item.name, item.nameOpt || opt && opt.name);
+		if (item.name instanceof Array) {
+			tm.nameFromArray(item.name, item.nameOpt || opt && opt.name);
 		}
 		if (item.attrs instanceof Array) {
 			tm.attrFromArray(item.attrs, item.attrsOpt || opt && opt.attrs);
 		}
 		if (item.path instanceof Array) {
-			tm.path(item.path, item.pathOpt || opt && opt.path);
+			tm.pathFromArray(item.path, item.pathOpt || opt && opt.path);
 		}
 	}
 	return tm;
@@ -316,6 +316,13 @@ TreeMatcher.prototype = {
 		});
 		this.rulesName.push(m);
 	},
+	nameFromArray: function(list, preOpt) {
+		var c = list.length;
+		for (var i = 0; i < c; i++) {
+			var item = list[i];
+			this.name(item, preOpt);
+		}
+	},
 	testNameRule: function(rule, nodeName) {
 		return rule.test(nodeName);
 	},
@@ -371,17 +378,7 @@ TreeMatcher.prototype = {
 		var c = list.length;
 		for (var i = 0; i < c; i++) {
 			var item = list[i];
-			if (STRING === typeof item) {
-				item = this.getAttrTestFromString(item);
-			}
-			if (item instanceof Array) {
-				// item = item.slice();
-				item[2] = this.optExtend(item[2] || {}, preOpt);
-				this.attr({name: item[0], value: item[1]}, item[2]);
-			} else if (OBJECT === typeof item) {
-				item.opt = this.optExtend(item.opt || {}, preOpt);
-				this.attr(item, item.opt);
-			}
+			this.attr(item, preOpt);
 		}
 	},
 	nodeAttrsToArray: function(node) {
@@ -432,15 +429,22 @@ TreeMatcher.prototype = {
 		}, this.getItemSuccessOrder);
 		this.rulesPath.push(m);
 	},
+	pathFromArray: function(list, preOpt) {
+		var c = list.length;
+		for (var i = 0; i < c; i++) {
+			var item = list[i];
+			this.path(item, preOpt);
+		}
+	},
 	testPathRule: function(rule, path) {
 		return rule.test(path);
 	},
-	testPath: function(path) {
+	testPath: function(path, method) {
 		return this.testRuleItem(
 			this.rulesPath,
 			path,
 			this.testPathRule,
-			this.methodOrList
+			method || this.methodOrList
 		);
 	},
 	testAll: function(testNode, testPath) {

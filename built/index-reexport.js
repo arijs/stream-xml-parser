@@ -1,0 +1,5 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.getParser = exports.HTMLTypeset = exports.testList = exports.treeStats = exports.printerTransform = exports.Printer = exports.htmlVoidTagMap = exports.elementSnabbdom = exports.elementDom = exports.elementDefault = exports.treeRender = exports.TreeMatcher = exports.TreeBuilder = exports.XMLParser = void 0;
+var StreamXMLParser = require("./index.mjs");
+exports.XMLParser = StreamXMLParser.XMLParser, exports.TreeBuilder = StreamXMLParser.TreeBuilder, exports.TreeMatcher = StreamXMLParser.TreeMatcher, exports.treeRender = StreamXMLParser.treeRender, exports.elementDefault = StreamXMLParser.elementDefault, exports.elementDom = StreamXMLParser.elementDom, exports.elementSnabbdom = StreamXMLParser.elementSnabbdom, exports.htmlVoidTagMap = StreamXMLParser.htmlVoidTagMap, exports.Printer = StreamXMLParser.Printer, exports.printerTransform = StreamXMLParser.printerTransform, exports.treeStats = StreamXMLParser.treeStats, exports.testList = StreamXMLParser.testList, exports.HTMLTypeset = StreamXMLParser.HTMLTypeset, exports.getParser = StreamXMLParser.getParser;

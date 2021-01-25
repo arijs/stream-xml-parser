@@ -1,9 +1,11 @@
-var fs = require('fs');
-var path = require('path');
-var XMLParser = require('..');
-var printerTransform = XMLParser.printerTransform;
-var Printer = XMLParser.Printer;
-var getParser = XMLParser.getParser;
+// Minimum TypeScript Version: 4.0
+import fs from 'fs';
+import path from 'path';
+import {
+	printerTransform,
+	Printer,
+	getParser
+} from '../../src/index';
 
 var fileOpt = { encoding: 'utf8' };
 

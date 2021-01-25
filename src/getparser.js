@@ -15,9 +15,12 @@ export default function getParser(elAdapter, tagVoidMap) {
 	return {
 		write: xp.write.bind(xp),
 		end: xp.end.bind(xp),
-		getResult: function({ asNode } = {}) {
+		getResult: function({ asNode } = { asNode: undefined }) {
 			var error = tb.errors;
-			var tree = asNode ? tb.root.tag : elAdapter.childrenGet(tb.root.tag);
+			if (tb.root && tb.root.tag) {
+				var tree = tb.root.tag;
+			}
+			tree = asNode ? tree : elAdapter.childrenGet(tree);
 			if (error instanceof Array && 0 === error.length) error = null;
 			return {
 				error,
