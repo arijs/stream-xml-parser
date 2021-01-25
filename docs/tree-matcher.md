@@ -2,6 +2,124 @@
 
 An regex-like engine for searching nodes in a html or xml document, together with a tool to modify or replace the nodes found. It's not 'regex' in the sense that all rules are strings, but because you can define the minimum and maximum number of times that each rule can match, and wether each rule is greedy or not (stop matching when the minimum or maximum amount of items have been found).
 
+At first, this may look like a crappy 'css selector engine' without the actual 'selector' string syntax, and that's exactly what it is. By not having to define and parse a complex string syntax for selectors, you define your rules as POJO (plain old javascript objects), and the code is greatly simplified, lighter and maybe even faster.
+
+Before we go deep in detail of the API, first here's a high-level API I call `PrinterTransform` that uses the `TreeMatcher` objects underneath.
+
+```js
+// Source:
+// https://github.com/arijs/stream-xml-parser/blob/master/test/printertransform.js#L113-L189
+
+// We'll talk about what are 'adapters' later.
+var am = printerTransform.asyncMatcher(elAdapter);
+
+// The rule below search for nodes:
+// - which are <div>s
+// - which have the attribute id="root"
+// - which have _NO_ other attributes whatsoever
+// - which are direct children of the <body> tag
+//   - which is a direct child of the <html> tag
+//   - which is the root node of the document
+am.addRule({
+  matcher: {
+    name: 'div',
+    attrs: [['id', 'root'], [null, null, '<0>']],
+    path: ['html', 'body']
+  },
+  callback: function(opt) {
+    // When this node is found, this callback function is called
+    // and it can perform operations like replace, prepend, append,
+    // insert another node before or after.
+    // It can insert a tree of nodes or a html/xml string directly.
+    // The 'children' property means to replace the entire content
+    // of the node that was found with new content that is passed.
+    return opt.callback(null, {
+      noFormat: true,
+      children: {text: '<div class="app--root">App</div>', noFormat: true}
+    });
+  }
+});
+
+// The rule below is very simple, it just searchs for the <head> tag
+// inside of the <html> root node.
+am.addRule({
+  matcher: {
+    name: 'head',
+    path: ['html']
+  },
+  callback: function(opt) {
+    // Here, we're appending a tree of nodes at the end of the <head> tag.
+    return opt.callback(null, {
+      append: {tree: buildCssLinks(elAdapter)}
+    });
+  }
+});
+
+// The rule below searchs for:
+// - <script> tags
+// - which have src="/js/index.js"
+// - and no other attributes
+// - and are children of <html><body>.
+am.addRule({
+  matcher: {
+    name: 'script',
+    attrs: [['src', '/js/index.js'], [null, null, '<0>']],
+    path: ['html', 'body']
+  },
+  callback: function(opt) {
+    // This callback will insert a html string after the <script> tag.
+    return opt.callback(null, {
+      after: {text: buildCompScripts(opt), noFormat: true}
+    });
+  }
+});
+
+// The rule below searchs for:
+// - the <title> tag
+// - which must have no attributes
+// - inside of <html><head>.
+am.addRule({
+  matcher: {
+    name: 'title',
+    attrs: [[null, null, '<0>']],
+    path: ['html', 'head']
+  },
+  callback: function(opt) {
+    // here we replace the entire content as a html string.
+    return opt.callback(null, {
+      noFormat: true,
+      children: {text: 'Replaced Title', noFormat: true}
+    });
+  }
+});
+
+// The rule below searchs for:
+// - <meta> tags
+// - which have name="description"
+// - which have a 'content' attribute, regardless of the attribute value
+// - and have no other attributes
+// - inside of <html><head>.
+am.addRule({
+  matcher: {
+    name: 'meta',
+    attrs: [['name', 'description'], ['content', null], [null, null, '<0>']],
+    path: ['html', 'head']
+  },
+  callback: function(opt) {
+    // The 'full' property means to replace the entire tag with new content,
+    // and not only its children.
+    return opt.callback(null, {
+      full: {tree: nodeContentAsTree('Replaced Description from PrinterTransform', opt)}
+    });
+  }
+});
+
+// Everything above was just configuration, the code below runs the actual transformation.
+transformAsync(html.tree, elAdapter, am.transform, function(err, html) {
+  console.log(err, html);
+});
+```
+
 It works like this: you create `TreeMatcher` objects, and then you can add _Rules_ to it. We will show how to create the `TreeMatcher` objects later, but first we will talk about how to add _Rules_ to your objects.
 
 ## Rules
@@ -194,3 +312,7 @@ Nodes Transformer source: https://github.com/arijs/stream-xml-parser/blob/master
 Example Test case: https://github.com/arijs/stream-xml-parser/blob/master/test/printertransform.js#L113-L189
 
 A more practical example: https://github.com/arijs/vue-prerender/blob/master/examples/full/prerender.mjs#L258-L348
+
+## FAQ
+
+Please submit your questions [in the discussions section](https://github.com/arijs/stream-xml-parser/discussions) and it may get featured here.
