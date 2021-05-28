@@ -143,6 +143,9 @@ function TreeBuilder(opt) {
 	this.eventFn = opt.event || noop;
 	this.element = opt.element;
 	this.tagVoidMap = opt.tagVoidMap;
+	if (opt.unclosedTagChildren) {
+		this.unclosedTagChildren = opt.unclosedTagChildren;
+	}
 	this.scopeNewChild(this.element.initRoot());
 	this.root = this.currentScope;
 	this.path = [];
@@ -151,7 +154,8 @@ function TreeBuilder(opt) {
 }
 TreeBuilder.optDefault = {
 	element: null,
-	tagVoidMap: null
+	tagVoidMap: null,
+	unclosedTagChildren: null,
 };
 TreeBuilder.TAG_INSTRUCTION = {tag:'#instruction'};
 TreeBuilder.TAG_DECLARATION = {tag:'#declaration'};

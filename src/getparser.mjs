@@ -2,18 +2,29 @@ import XMLParser from './xmlparser';
 import TreeBuilder from './treebuilder';
 import elementDefault from './element/default';
 import defaultTagVoidMap from './htmlvoidtagmap';
+import defaultTagStrictMap from './htmlstricttagmap';
 
-export default function getParser(elAdapter, tagVoidMap, unclosedTagChildren) {
-	elAdapter = elAdapter || elementDefault();
-	tagVoidMap = tagVoidMap || defaultTagVoidMap;
+export default function getParser({
+	elAdapter,
+	tagVoidMap,
+	tagStrictMap,
+	unclosedTagChildren
+}) {
+	elAdapter = null == elAdapter
+		? elementDefault() : elAdapter;
+	tagVoidMap = null == tagVoidMap
+		? defaultTagVoidMap : tagVoidMap;
+	tagStrictMap = null == tagStrictMap
+		? defaultTagStrictMap : tagStrictMap;
 	var tb = new TreeBuilder({
 		element: elAdapter,
-		tagVoidMap
+		tagVoidMap,
+		unclosedTagChildren,
 	});
-	if (unclosedTagChildren) {
-		tb.unclosedTagChildren = unclosedTagChildren;
-	}
-	var xp = new XMLParser(tb.parserEvent.bind(tb));
+	var xp = new XMLParser({
+		event: tb.parserEvent.bind(tb),
+		tagStrictMap,
+	});
 
 	return {
 		write: xp.write.bind(xp),
@@ -27,7 +38,9 @@ export default function getParser(elAdapter, tagVoidMap, unclosedTagChildren) {
 				tree,
 				elAdapter,
 				builder: tb,
-				parser: xp
+				parser: xp,
+				tagVoidMap,
+				tagStrictMap,
 			};
 		},
 		elAdapter
