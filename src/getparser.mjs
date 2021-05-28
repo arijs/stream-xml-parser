@@ -3,13 +3,16 @@ import TreeBuilder from './treebuilder';
 import elementDefault from './element/default';
 import defaultTagVoidMap from './htmlvoidtagmap';
 
-export default function getParser(elAdapter, tagVoidMap) {
+export default function getParser(elAdapter, tagVoidMap, unclosedTagChildren) {
 	elAdapter = elAdapter || elementDefault();
 	tagVoidMap = tagVoidMap || defaultTagVoidMap;
 	var tb = new TreeBuilder({
 		element: elAdapter,
 		tagVoidMap
 	});
+	if (unclosedTagChildren) {
+		tb.unclosedTagChildren = unclosedTagChildren;
+	}
 	var xp = new XMLParser(tb.parserEvent.bind(tb));
 
 	return {

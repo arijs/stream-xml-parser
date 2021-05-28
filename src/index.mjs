@@ -1,3 +1,4 @@
+import XMLParser from './xmlparser';
 import * as treeRender from './treerender';
 import TreeBuilder from './treebuilder';
 import TreeMatcher from './treematcher';
@@ -6,14 +7,19 @@ import elementDefault from './element/default';
 import elementDom from './element/dom';
 import elementSnabbdom from './element/snabbdom';
 import htmlVoidTagMap from './htmlvoidtagmap';
+import htmlStrictTagMap from './htmlstricttagmap';
 import * as printerTransform from './printertransform';
+
+XMLParser.optDefault.tagStrictMap = htmlStrictTagMap;
 
 TreeBuilder.optDefault.element = elementDefault;
 TreeBuilder.optDefault.tagVoidMap = htmlVoidTagMap;
-Printer.optDefault.tagVoidMap = htmlVoidTagMap;
 
-export { default as XMLParser } from './xmlparser';
+Printer.optDefault.tagVoidMap = htmlVoidTagMap;
+Printer.optDefault.tagStrictMap = htmlStrictTagMap;
+
 export {
+	XMLParser,
 	TreeBuilder,
 	TreeMatcher,
 	treeRender,
@@ -21,6 +27,7 @@ export {
 	elementDom,
 	elementSnabbdom,
 	htmlVoidTagMap,
+	htmlStrictTagMap,
 	Printer,
 	printerTransform
 };

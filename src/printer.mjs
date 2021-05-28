@@ -14,10 +14,14 @@ export default function Printer(opt) {
 	this.selfCloseString = opt.selfCloseString || this.selfCloseString;
 	this.newLine = opt.newLine || this.newLine;
 	this.tagVoidMap = opt.tagVoidMap;
+	this.tagStrictMap = opt.tagStrictMap;
+	this.rootStrict = opt.rootStrict;
 }
 
 Printer.optDefault = {
-	tagVoidMap: null
+	tagVoidMap: null,
+	tagStrictMap: null,
+	rootStrict: false,
 };
 
 Printer.prototype = {
@@ -32,6 +36,8 @@ Printer.prototype = {
 	selfCloseString: ' /',
 	newLine: '\n',
 	tagVoidMap: null,
+	tagStrictMap: null,
+	rootStrict: false,
 	log: function() {},
 	repeat: function(n, c) {
 		var s = '';
@@ -57,6 +63,16 @@ Printer.prototype = {
 		var name = this.elAdapter.nameGet(node);
 		name = String(name || '').toLowerCase();
 		return this.tagVoidMap[name];
+	},
+	isStrictTag: function(node) {
+		var name = this.elAdapter.nameGet(node);
+		name = String(name || '').toLowerCase();
+		return this.tagStrictMap[name];
+	},
+	isStrictPath: function(path) {
+		var plen = path.length;
+		var last = plen > 0 && path[plen - 1];
+		return last ? this.isStrictTag(last) : this.rootStrict;
 	},
 	printAttr: function(name, value) {
 		var attr = this.encodeAttrName(name);
@@ -90,11 +106,13 @@ Printer.prototype = {
 		var nl = this.newLine;
 		var nc = this.elAdapter.childCount(node);
 		var sc = 0 == nc && this.isVoidTag(node);
+		var st = this.isStrictTag(node);
 		var out = this.printIndent(level);
 		out += this.printTagOpen(node, sc);
 		if (nc > 0) {
-			out += nl + this.printTagChildren(node, level+1, path.concat([node]));
-			out += this.printIndent(level);
+			out += st ? '' : nl;
+			out += this.printTagChildren(node, level+1, path.concat([node]));
+			out += st ? '' : this.printIndent(level);
 		}
 		if (!sc) {
 			out += this.printTagClose(node);
@@ -134,7 +152,9 @@ Printer.prototype = {
 		var trim = this.textTrim(text);
 		return trim ? this.printIndent(level) + trim : trim;
 	},
-	printText: function(ftext, level) {
+	printText: function(ftext, level, path) {
+		var strict = this.isStrictPath(path);
+		if (strict) return ftext;
 		var text = this.textTrim(ftext);
 		text = this.textSplitLines(text);
 		var c = text.length;

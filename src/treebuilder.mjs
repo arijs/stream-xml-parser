@@ -115,6 +115,9 @@ var events = {
 	text: function(ev) {
 		this.treeEvent('text', null, ev);
 		this.element.childText(this.currentScope.tag, ev.text, ev, this);
+	},
+	info: function(ev) {
+		this.treeEvent('info', null, ev);
 	}
 };
 
@@ -220,8 +223,8 @@ TreeBuilder.prototype = {
 		this.scopeNewChild(this.element.initName(ev.tag.name), ev);
 		this.treeEvent('tagOpenStart', null, ev);
 	},
-	unclosedTagChildren: function(tag, index, ev) {
-		var name = this.element.nameGet(tag, ev.event, this);
+	unclosedTagChildren: function(tag) { // , index, ev
+		var name = this.element.nameGet(tag);
 		name = String(name).toLowerCase();
 		if (this.tagVoidMap[name]) return 0;
 	},	

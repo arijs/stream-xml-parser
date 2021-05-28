@@ -1,5 +1,5 @@
 var fs = require('fs');
-// var util = require('util');
+var util = require('util');
 var XMLParser = require('..');
 var testList = require('./testlist');
 var printerTransform = require('./printertransform');
@@ -10,6 +10,10 @@ var elementDefault = XMLParser.elementDefault;
 var elementSnabbdom = XMLParser.elementSnabbdom;
 var Printer = XMLParser.Printer;
 XMLParser = XMLParser.XMLParser;
+
+function inspect(x) {
+	return util.inspect(x, {depth: 1, colors: true});
+}
 
 function getStateName(xp) {
 	var s = xp.state;
@@ -44,16 +48,33 @@ function parseFile(fpath, callback) {
 function xpEvent(ev) {
 	var tag = ev.tag;
 	var attr = ev.attr;
+	var buf = ev.buffered;
 	console.log(xp.c, xp.line, xp.column, xp.endColumn, xp.pos,
-		[ev.name, ev.id].join(':'),
-		tag && (
+		[
+			ev.name,
+			ev.id,
+			!tag ? '' :
+			tag.selfClose ? 'selfClose' :
+			tag.close ? 'close' :
+			'open',
+			ev.info ? [
+				ev.info.strictOpenEvent ? 'sOpenEv' : '',
+				ev.info.strictCloseEvent ? 'sCloseEv' : '',
+			].filter(function(x) {return x;}).join(',') : '',
+			buf ? [
+				buf.line, buf.column, buf.endColumn, buf.pos,
+			].join('.') : '',
+		].join(':'),
+		tag ? (
 			'endInstruction' === ev.name ? tag.text :
 			'endDeclaration' === ev.name ? tag.text :
 			'endComment' === ev.name ? tag.textComment :
 			'endCdata' === ev.name ? tag.textCdata :
 			tag.name || ''
-		),
-		attr && [attr.name, attr.value].join('=') || '');
+		) : ev.name === 'text' ? ev.text : '',
+		attr && [attr.name, attr.value].join('=') || '',
+		ev.sopen ? 'Strict «'+ev.sopen+'»' : '',
+	);
 }
 
 var xp = new XMLParser(xpEvent);
@@ -114,13 +135,18 @@ function parseTree(fpath, callback) {
 					var utags = tc.unclosedTags;
 					var isRoot = tc.match.parentScope === ev.builder.root;
 					console.log('= '+(isRoot ? 'ROOT:' : '')+name+' ev.tagClose.index '+tc.pathIndex);
-					console.log('closed tag', tc.match);
+					console.log('closed tag', inspect(tc.match));
 					for (var i = 0; i < utags.length; i++) {
-						console.log('open tag '+i, utags[i].tag);
+						console.log('open tag '+i, inspect(utags[i].tag));
 						// console.log('open tag parent '+i, utags[i].parentScope);
 					}
 					break;
-				default: return;
+				case 'info':
+					console.log(name, ev.event.id, inspect(ev.tag));
+				case 'text':
+					console.log(name, ev.event.id, '«'+ev.text+'»');
+				default:
+					return;
 			}
 			var bc = getSimpleBreadcrumb(ev);
 			console.log(name, ev.error, getSimplePath(ev), bc);
@@ -150,6 +176,16 @@ function parseTree(fpath, callback) {
 	});
 	rs.on('data', function(text) {
 		xp.write(text);
+	});
+}
+
+function printTree(filePath) {
+	return parseTree(filePath, function(err, result) {
+		if (err.length) return;
+		var printer = new Printer();
+		printer.elAdapter = elementDefault();
+		var out = printer.print(result, 0);
+		console.log(out);
 	});
 }
 
@@ -202,13 +238,11 @@ module.exports.sumario = function() {
 };
 
 module.exports.printer = function() {
-	return parseTree(__dirname+'/examples/simple.xml', function(err, result) {
-		if (err.length) return;
-		var printer = new Printer();
-		printer.elAdapter = elementDefault();
-		var out = printer.print(result, 0);
-		console.log(out);
-	});
+	return printTree(__dirname+'/examples/simple.xml');
+};
+
+module.exports.strictTag = function() {
+	return printTree(__dirname+'/examples/strict-tag.html');
 };
 
 module.exports.testList = testList;

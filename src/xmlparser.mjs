@@ -29,6 +29,7 @@ var ev_startCdata = {name:'startCdata'};
 var ev_endCdata = {name:'endCdata'};
 var ev_tagName = {name:'tagName'};
 var ev_tagAttribute = {name:'tagAttribute'};
+var ev_info = {name:'info'};
 
 var reSpace = /\s/;
 var strCdata = '[CDATA[';
@@ -40,11 +41,20 @@ var nop = () => {};
 function XMLParser(opt) {
 	if (opt instanceof Function) {
 		this.event = opt;
-		this.opt = { event: opt };
+		this.opt = opt = { event: opt };
 	} else {
 		this.event = opt.event;
 		this.opt = opt;
 	}
+	var {
+		tagStrictMap,
+		isStrictTag,
+	} = {
+		...XMLParser.optDefault,
+		...opt
+	};
+	if (tagStrictMap) this.tagStrictMap = tagStrictMap;
+	if (isStrictTag) this.isStrictTag = isStrictTag;
 	this.decodeString = opt.decodeString || echo;
 	this.decodeText = opt.decodeText || this.decodeString;
 	this.decodeTagName = opt.decodeTagName || this.decodeString;
@@ -61,6 +71,11 @@ function XMLParser(opt) {
 	this.state = st_TEXT;
 	this.buffer = '';
 }
+
+XMLParser.optDefault = {
+	tagStrictMap: null,
+	isStrictTag: null,
+};
 
 XMLParser.prototype = {
 	constructor: XMLParser,
@@ -83,7 +98,15 @@ XMLParser.prototype = {
 	decodeAttrValue: null,
 	customParser: null,
 	currentCustomParser: null,
+	tagStrictMap: null,
+	tagStrictOpen: null,
+	tagStrictBuf: null,
+	tagStrictEventBuf: null,
 	buffer: null,
+	isStrictTag: function(name) {
+		var smap = this.tagStrictMap;
+		return smap && smap[String(name).toLowerCase()];
+	},
 	createAttr: function() {
 		return {
 			startSpace: null,
@@ -126,26 +149,91 @@ XMLParser.prototype = {
 				}
 			}
 		}
-		function event(ev, id) {
-			ev = {
-				name: ev.name,
+		function event(srcEv, id, evInfo) {
+			var ev = {
+				name: srcEv.name,
 				id: id,
 				attr: cattr,
 				tag: ctag,
+				sopen: self.tagStrictOpen,
 				text: buf,
+				info: evInfo,
 				parser: self,
+				buffered: null,
 				customParser: self.currentCustomParser
 			};
 			if (ctag) ev.tag = self.decodeTag(ctag, ev);
 			if (cattr) ev.attr = self.decodeAttr(cattr, ev);
 			if (buf) ev.text = self.decodeText(buf, ev);
-			eventFn(ev);
+			if (
+				self.tagStrictOpen &&
+				srcEv !== ev_text &&
+				!(evInfo && (
+					evInfo.strictOpenEvent ||
+					evInfo.strictCloseEvent
+				))
+			) {
+				ev.buffered = {
+					pos: self.pos,
+					line: self.line,
+					column: self.column,
+					endPos: self.endPos,
+					endLine: self.endLine,
+					endColumn: self.endColumn,
+				};
+				self.tagStrictEventBuf.push(ev);
+			} else {
+				eventFn(ev);
+			}
+		}
+		function eventStartTag(id) {
+			event(ev_startTag, id);
+		}
+		function eventTagName(id) {
+			event(ev_tagName, id);
 		}
 		function eventEndTag(id, ev_custom) {
+			var ev = ev_custom || ev_endTag;
+			var sopen = self.tagStrictOpen;
+			var evSkip = false;
+			var evInfo = {
+				strictOpenEvent: false,
+				strictCloseEvent: false,
+			};
+			if (ev === ev_endTag) {
+				if (sopen) {
+					if (ctag.close && sopen === ctag.name) {
+						evInfo.strictCloseEvent = true;
+						event(ev_info, '380', evInfo);
+						self.tagStrictEventBuf.forEach(ev => eventFn(ev));
+						event(ev_info, '390', evInfo);
+					} else {
+						evSkip = true;
+						buf = self.tagStrictBuf + self.c;
+						self.tagStrictBuf = '';
+						self.tagStrictEventBuf = [];
+						event(ev_text, '370', evInfo);
+					}
+				} else if (
+					!ctag.close &&
+					!ctag.selfClose &&
+					self.isStrictTag(ctag.name)
+				) {
+					evInfo.strictOpenEvent = true;
+					self.tagStrictOpen = ctag.name;
+					self.tagStrictBuf = '';
+					self.tagStrictEventBuf = [];
+				}
+			}
 			buf = '';
 			state = st_TEXT;
-			event(ev_custom || ev_endTag, id);
+			if (!evSkip) event(ev, id, evInfo);
 			self.currentTag = ctag = null;
+			if (evInfo.strictCloseEvent) {
+				self.tagStrictOpen = null;
+				self.tagStrictBuf = null;
+				self.tagStrictEventBuf = null;
+			}
 		}
 		function eventTagAttr(id) {
 			event(ev_tagAttribute, id);
@@ -153,7 +241,7 @@ XMLParser.prototype = {
 		}
 		function eventTagNameSlash(id) {
 			ctag.name = tagNameSlash;
-			event(ev_tagName, id);
+			eventTagName(id);
 			tagNameSlash = void 0;
 		}
 		var self = this;
@@ -183,6 +271,23 @@ XMLParser.prototype = {
 			this.endPos = pos;
 			this.endLine = line;
 			this.endColumn = column;
+			if (this.tagStrictOpen && c === '<') {
+				if (ctag) {
+					buf = this.tagStrictBuf;
+					this.tagStrictBuf = '';
+					this.currentTag = ctag = null;
+					this.currentAttr = cattr = null;
+					// console.error(
+					// 	`TagStrictOpen:`,
+					// 	this.tagStrictOpen,
+					// 	state,
+					// 	ctag,
+					// 	cattr,
+					// 	{ buf, c },
+					// );
+				}
+				state = st_TEXT;
+			}
 			switch (state) {
 				case st_TEXT:
 					switch (c) {
@@ -193,7 +298,7 @@ XMLParser.prototype = {
 							}
 							state = st_TAG_START;
 							this.currentTag = ctag = {};
-							event(ev_startTag, '20');
+							eventStartTag('20');
 							break;
 						default:
 							buf += c;
@@ -225,7 +330,7 @@ XMLParser.prototype = {
 								}
 								buf = '';
 							}
-							event(ev_tagName, '45');
+							eventTagName('40');
 							eventEndTag('50');
 							break;
 						case '/':
@@ -264,8 +369,8 @@ XMLParser.prototype = {
 							ctag.declaration = true;
 							ctag.text = buf;
 							state = st_TEXT;
-							event(ev_startDeclaration, '61');
-							eventEndTag('62', ev_endDeclaration);
+							event(ev_startDeclaration, '70');
+							eventEndTag('80', ev_endDeclaration);
 							break;
 						case '-':
 							if ('' === buf) {
@@ -275,7 +380,7 @@ XMLParser.prototype = {
 								ctag.comment = true;
 								buf = '';
 								state = st_COMMENT;
-								event(ev_startComment, '63');
+								event(ev_startComment, '90');
 								break;
 							}
 						default:
@@ -284,7 +389,7 @@ XMLParser.prototype = {
 								ctag.cdata = true;
 								buf = '';
 								state = st_CDATA;
-								event(ev_startCdata, '64');
+								event(ev_startCdata, '100');
 							} else if (
 								buf.length < strCdata.length &&
 								strCdata.substr(0, buf.length) === buf
@@ -293,7 +398,7 @@ XMLParser.prototype = {
 							} else {
 								ctag.declaration = true;
 								state = st_DECLARATION;
-								event(ev_startDeclaration, '65');
+								event(ev_startDeclaration, '110');
 								break;
 							}
 					}
@@ -302,7 +407,7 @@ XMLParser.prototype = {
 					switch (c) {
 						case '>':
 							ctag.text = buf;
-							eventEndTag('70', ev_endDeclaration);
+							eventEndTag('120', ev_endDeclaration);
 							break;
 						default:
 							buf += c;
@@ -315,7 +420,7 @@ XMLParser.prototype = {
 								ctag.textComment = buf.substr(0, buf.length - 2);
 								buf = '';
 								state = st_TEXT;
-								event(ev_endComment, '100');
+								event(ev_endComment, '130');
 								break;
 							}
 						default:
@@ -329,7 +434,7 @@ XMLParser.prototype = {
 								ctag.textCdata = buf.substr(0, buf.length - 2);
 								buf = '';
 								state = st_TEXT;
-								event(ev_endCdata, '110');
+								event(ev_endCdata, '140');
 								break;
 							}
 						default:
@@ -346,8 +451,8 @@ XMLParser.prototype = {
 							} else {
 								ctag.name = buf;
 							}
-							event(ev_tagName, '120');
-							eventEndTag('130');
+							eventTagName('150');
+							eventEndTag('160');
 							break;
 						case '/':
 							if (ctag.close) {
@@ -366,7 +471,7 @@ XMLParser.prototype = {
 								} else {
 									ctag.name = buf;
 									state = st_TAG_NAMED;
-									event(ev_tagName, '140');
+									eventTagName('170');
 								}
 								buf = c;
 							} else if (tagBeforeClose) {
@@ -381,7 +486,7 @@ XMLParser.prototype = {
 					switch (c) {
 						case '>':
 							if (buf) ctag.endSpace = buf;
-							eventEndTag('150');
+							eventEndTag('180');
 							break;
 						case '/':
 							this.tagBeforeClose = tagBeforeClose = buf;
@@ -404,20 +509,20 @@ XMLParser.prototype = {
 						case '>':
 							if (tagBeforeClose) ctag.selfCloseSpace = tagBeforeClose;
 							if (buf) ctag.endSpace = buf;
-							if (tagNameSlash) eventTagNameSlash('155');
+							if (tagNameSlash) eventTagNameSlash('190');
 							ctag.selfClose = true;
 							this.tagBeforeClose = tagBeforeClose = void 0;
-							eventEndTag('160');
+							eventEndTag('200');
 							break;
 						case '/':
 							if (tagNameSlash) {
-								this.tagNameSlash = tagNameSlash += '/';
-								eventTagNameSlash('165');
+								this.tagNameSlash = tagNameSlash += c;
+								eventTagNameSlash('210');
 							} else if (tagBeforeClose) {
 								this.currentAttr = cattr = this.createAttr();
 								cattr.startSpace = tagBeforeClose;
 								cattr.name = c;
-								eventTagAttr('170');
+								eventTagAttr('220');
 							}
 							this.tagBeforeClose = tagBeforeClose = buf;
 							buf = '';
@@ -428,7 +533,7 @@ XMLParser.prototype = {
 							} else {
 								if (tagNameSlash) {
 									this.tagNameSlash = tagNameSlash += '/';
-									eventTagNameSlash('175');
+									eventTagNameSlash('230');
 								}
 								state = st_ATTR_NAME;
 								this.currentAttr = cattr = this.createAttr();
@@ -441,8 +546,8 @@ XMLParser.prototype = {
 					switch (c) {
 						case '>':
 							cattr.name = buf;
-							eventTagAttr('180');
-							eventEndTag('190');
+							eventTagAttr('240');
+							eventEndTag('250');
 							break;
 						case '=':
 							cattr.name = buf;
@@ -463,8 +568,8 @@ XMLParser.prototype = {
 					switch (c) {
 						case '>':
 							ctag.endSpace = buf;
-							eventTagAttr('200');
-							eventEndTag('210');
+							eventTagAttr('260');
+							eventEndTag('270');
 							break;
 						case '=':
 							if (buf) cattr.eqSpace = buf;
@@ -477,7 +582,7 @@ XMLParser.prototype = {
 								buf += c;
 							} else {
 								if (cattr) {
-									eventTagAttr('220');
+									eventTagAttr('280');
 								}
 								state = st_ATTR_NAME;
 								this.currentAttr = cattr = this.createAttr();
@@ -490,8 +595,8 @@ XMLParser.prototype = {
 					switch (c) {
 						case '>':
 							if (buf) ctag.endSpace = buf;
-							eventTagAttr('230');
-							eventEndTag('240');
+							eventTagAttr('290');
+							eventEndTag('300');
 							break;
 						case '"':
 						case '\'':
@@ -520,14 +625,14 @@ XMLParser.prototype = {
 					switch (c) {
 						case '>':
 							cattr.value = buf;
-							eventTagAttr('250');
-							eventEndTag('260');
+							eventTagAttr('310');
+							eventEndTag('320');
 							break;
 						default:
 							if (reSpace.test(c)) {
 								cattr.value = buf;
 								state = st_TAG_NAMED;
-								eventTagAttr('270');
+								eventTagAttr('330');
 								buf = c;
 							} else {
 								buf += c;
@@ -541,7 +646,7 @@ XMLParser.prototype = {
 							cattr.value = buf;
 							buf = '';
 							state = st_TAG_NAMED;
-							eventTagAttr('280');
+							eventTagAttr('340');
 							break;
 						default:
 							buf += c;
@@ -554,18 +659,21 @@ XMLParser.prototype = {
 						ccp.attrValue = null;
 						({attr: cattr, i, pos, line, column} = buf);
 						buf = '';
-						if (cattr) eventTagAttr('290');
+						if (cattr) eventTagAttr('350');
 					}
 					break;
 			}
 			this.pos = this.endPos;
 			this.line = this.endLine;
 			this.column = this.endColumn;
+			if (this.tagStrictOpen && ctag) {
+				this.tagStrictBuf += c;
+			}
 		}
 		this.c = void 0;
 		this.state = state;
 		if (final && state === st_TEXT && buf) {
-			event(ev_text, '290');
+			event(ev_text, '360');
 			buf = '';
 		}
 		this.buffer = buf;
