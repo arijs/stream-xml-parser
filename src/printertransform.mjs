@@ -2,8 +2,8 @@ import Printer from './printer';
 import getParser from './getparser';
 import TreeMatcher from './treematcher';
 
-export function printTreeSync({tree, elAdapter, customPrintTag, path, level}) {
-	var printer = new Printer();
+export function printTreeSync({tree, elAdapter, customPrintTag, path, level, printer}) {
+	printer = printer || new Printer();
 	printer.elAdapter = elAdapter;
 	if (customPrintTag instanceof Function) {
 		var defaultPrintTag = printer.printTag.bind(printer);
@@ -14,8 +14,8 @@ export function printTreeSync({tree, elAdapter, customPrintTag, path, level}) {
 	return printer.print(tree, level || 0, path);
 }
 
-export function printTreeAsync({tree, elAdapter, customPrintTag, path, level, callback}) {
-	var printer = new Printer();
+export function printTreeAsync({tree, elAdapter, customPrintTag, path, level, printer, callback}) {
+	printer = printer || new Printer();
 	printer.elAdapter = elAdapter;
 	if (customPrintTag instanceof Function) {
 		var defaultPrintTag = printer.printTagAsync.bind(printer);
@@ -33,7 +33,7 @@ function parseString(str, elAdapter) {
 	return parser.getResult();
 }
 
-export function prepare(rep, level, path, elAdapter, transformName) {
+export function prepare(rep, level, path, elAdapter, printer, transformName) {
 	var {name, tree, text, noFormat} = rep;
 	var error;
 	if (null == tree && !noFormat) {
@@ -48,17 +48,17 @@ export function prepare(rep, level, path, elAdapter, transformName) {
 			+rep.indent === rep.indent ? rep.indent :
 			rep.indent instanceof Function ? rep.indent(level) :
 			level;
-		text = printTreeSync({tree, elAdapter, path, level});
+		text = printTreeSync({tree, elAdapter, path, level, printer});
 	} else if (!noFormat) {
 		text =
-			printer.printIndent(level) +
+			printer.printTagSpaceBeforeOpen(level, printer.rootStrict) +
 			text +
-			printer.newLine;
+			printer.printTagSpaceAfterClose(level, printer.rootStrict);
 	}
 	return {error, text};
 }
 
-export function apply(rep, level, path, elAdapter) {
+export function apply(rep, level, path, elAdapter, printer) {
 	var errors = [], text;
 	if (
 		null != rep.full ||
@@ -86,7 +86,7 @@ export function apply(rep, level, path, elAdapter) {
 	return {errors, text};
 	function prepareRep(trep, add) {
 		if (trep) {
-			trep = prepare(trep, level + (add || 0), path, elAdapter, rep.name);
+			trep = prepare(trep, level + (add || 0), path, elAdapter, printer, rep.name);
 			if (trep.error) errors.push(trep.error);
 			return String(trep.text || '');
 		} else {
@@ -95,9 +95,9 @@ export function apply(rep, level, path, elAdapter) {
 	}
 }
 
-export function async({tree, elAdapter, transform, callback, level}) {
+export function async({tree, elAdapter, transform, callback, level, printer}) {
 	var repErrors = [];
-	return printTreeAsync({tree, elAdapter, customPrintTag, level, callback: cbPrintTree});
+	return printTreeAsync({tree, elAdapter, customPrintTag, level, printer, callback: cbPrintTree});
 	function addErrors(err) {
 		if (err instanceof Array) {
 			repErrors = repErrors.concat(err);
@@ -121,14 +121,19 @@ export function async({tree, elAdapter, transform, callback, level}) {
 					null != rep.prepend ||
 					null != rep.children )
 				) {
+					var st = printer.isStrictTag(node);
 					rep.open =
-						printer.printIndent(level) +
+						printer.printTagSpaceBeforeOpen(level, st, node) +
 						printer.printTagOpen(node) +
-						( null == rep.children || !rep.noFormat ? printer.newLine : '' );
+						( null == rep.children || !rep.noFormat
+							? printer.printTagSpaceAfterOpen(level, st, node)
+							: '' );
 					rep.close = 
-						( null == rep.children || !rep.noFormat ? printer.printIndent(level) : '' ) +
+						( null == rep.children || !rep.noFormat
+							? printer.printTagSpaceBeforeClose(level, st, node)
+							: '' ) +
 						printer.printTagClose(node) +
-						printer.newLine;
+						printer.printTagSpaceAfterClose(level, st, node);
 					if (null == rep.children) {
 						return printer.printTagChildrenAsync(node, level+1, path.concat([node]), function(errPrint, nodeChildren) {
 							addErrors(errPrint);
@@ -141,7 +146,7 @@ export function async({tree, elAdapter, transform, callback, level}) {
 				} else if (
 					null == rep.full
 				) {
-					return printTagAsync(node, level, path, function (errPrint, nodeFull) {
+					return printTagAsync.call(printer, node, level, path, function (errPrint, nodeFull) {
 						addErrors(errPrint);
 						rep.fullSrc = nodeFull;
 						return withContainer(rep);
@@ -151,11 +156,11 @@ export function async({tree, elAdapter, transform, callback, level}) {
 			} else if (err) {
 				return cbTag(err, '');
 			} else {
-				return printTagAsync(node, level, path, cbTag);
+				return printTagAsync.call(printer, node, level, path, cbTag);
 			}
 		}
 		function withContainer(rep) {
-			var {errors, text} = apply(rep, level, path, elAdapter);
+			var {errors, text} = apply(rep, level, path, elAdapter, printer);
 			addErrors(errors);
 			cbTag(null, text);
 		}

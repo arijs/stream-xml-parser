@@ -9,7 +9,7 @@ export default function getParser({
 	tagVoidMap,
 	tagStrictMap,
 	unclosedTagChildren
-}) {
+} = {}) {
 	elAdapter = null == elAdapter
 		? elementDefault() : elAdapter;
 	tagVoidMap = null == tagVoidMap

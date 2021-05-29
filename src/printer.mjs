@@ -15,13 +15,19 @@ export default function Printer(opt) {
 	this.newLine = opt.newLine || this.newLine;
 	this.tagVoidMap = opt.tagVoidMap;
 	this.tagStrictMap = opt.tagStrictMap;
+	this.noFormat = opt.noFormat;
 	this.rootStrict = opt.rootStrict;
+	if (opt.isStrictTag) {
+		this.isStrictTag = opt.isStrictTag;
+	}
 }
 
 Printer.optDefault = {
 	tagVoidMap: null,
 	tagStrictMap: null,
+	noFormat: false,
 	rootStrict: false,
+	isStrictTag: null,
 };
 
 Printer.prototype = {
@@ -74,6 +80,26 @@ Printer.prototype = {
 		var last = plen > 0 && path[plen - 1];
 		return last ? this.isStrictTag(last) : this.rootStrict;
 	},
+	printTagSpaceBeforeOpen: function(level) {
+		return this.noFormat
+			? ''
+			: this.printIndent(level);
+	},
+	printTagSpaceAfterOpen: function(level, st) {
+		return this.noFormat
+			? ''
+			: st ? '' : this.newLine;
+	},
+	printTagSpaceBeforeClose: function(level, st) {
+		return this.noFormat
+			? ''
+			: st ? '' : this.printIndent(level);
+	},
+	printTagSpaceAfterClose: function() {
+		return this.noFormat
+			? ''
+			: this.newLine;
+	},
 	printAttr: function(name, value) {
 		var attr = this.encodeAttrName(name);
 		if (null != value) {
@@ -103,21 +129,22 @@ Printer.prototype = {
 		return this.printAsync(this.elAdapter.childrenGet(node), level, path, cbPrint);
 	},
 	printTag: function(node, level, path) {
-		var nl = this.newLine;
 		var nc = this.elAdapter.childCount(node);
 		var sc = 0 == nc && this.isVoidTag(node);
 		var st = this.isStrictTag(node);
-		var out = this.printIndent(level);
+
+		var out = this.printTagSpaceBeforeOpen(level, st, node);
 		out += this.printTagOpen(node, sc);
 		if (nc > 0) {
-			out += st ? '' : nl;
+			out += this.printTagSpaceAfterOpen(level, st, node);
 			out += this.printTagChildren(node, level+1, path.concat([node]));
-			out += st ? '' : this.printIndent(level);
+			out += this.printTagSpaceBeforeClose(level, st, node);
 		}
 		if (!sc) {
 			out += this.printTagClose(node);
 		}
-		out += nl;
+		out += this.printTagSpaceAfterClose(level, st, node);
+
 		return out;
 	},
 	printTagAsync: function(node, level, path, cbPrint) {
@@ -128,17 +155,21 @@ Printer.prototype = {
 			cbChildren.call(this);
 		}
 		function cbChildren(err, children) {
-			var nl = this.newLine;
 			var sc = 0 == nc && this.isVoidTag(node);
-			var out = this.printIndent(level);
+			var st = this.isStrictTag(node);
+
+			var out = this.printTagSpaceBeforeOpen(level, st, node);
 			out += this.printTagOpen(node, sc);
 			if (children) {
-				out += nl + children + this.printIndent(level);
+				out += this.printTagSpaceAfterOpen(level, st, node);
+				out += children;
+				out += this.printTagSpaceBeforeClose(level, st, node);
 			}
 			if (!sc) {
 				out += this.printTagClose(node);
 			}
-			out += nl;
+			out += this.printTagSpaceAfterClose(level, st, node);
+
 			cbPrint(err, out);
 		}
 	},
@@ -153,8 +184,10 @@ Printer.prototype = {
 		return trim ? this.printIndent(level) + trim : trim;
 	},
 	printText: function(ftext, level, path) {
-		var strict = this.isStrictPath(path);
-		if (strict) return ftext;
+		if (
+			this.noFormat ||
+			this.isStrictPath(path)
+		) return ftext;
 		var text = this.textTrim(ftext);
 		text = this.textSplitLines(text);
 		var c = text.length;
@@ -167,25 +200,28 @@ Printer.prototype = {
 		return s;
 	},
 	printTextAsync: function(ftext, level, path, cbPrint) {
-		return cbPrint(null, this.printText(ftext, level));
+		return cbPrint(null, this.printText(ftext, level, path));
 	},
 	printComment: function(ftext, level) {
 		return this.printIndent(level) +
-			'<!--' + ftext + '-->\n';
+			'<!--' + ftext + '-->' +
+			(this.noFormat ? '' : this.newLine);
 	},
 	printCommentAsync: function(ftext, level, path, cbPrint) {
 		return cbPrint(null, this.printComment(ftext, level));
 	},
 	printDeclaration: function(ftext, level) {
 		return this.printIndent(level) +
-			'<!' + ftext + '>\n';
+			'<!' + ftext + '>' +
+			(this.noFormat ? '' : this.newLine);
 	},
 	printDeclarationAsync: function(ftext, level, path, cbPrint) {
 		return cbPrint(null, this.printDeclaration(ftext, level));
 	},
 	printInstruction: function(ftext, level) {
 		return this.printIndent(level) +
-			'<?' + ftext + '>\n';
+			'<?' + ftext + '>' +
+			(this.noFormat ? '' : this.newLine);
 	},
 	printInstructionAsync: function(ftext, level, path, cbPrint) {
 		return cbPrint(null, this.printInstruction(ftext, level));
