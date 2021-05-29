@@ -1,6 +1,6 @@
 {
 	"name": "@arijs/stream-xml-parser",
-	"version": "0.2.2",
+	"version": "0.2.3",
 	"repository": {
 		"type": "git",
 		"url": "git+https://github.com/arijs/stream-xml-parser.git"
