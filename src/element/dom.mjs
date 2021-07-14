@@ -1,4 +1,4 @@
-import {arrayFrom, arrayConcat} from '../collection';
+import {arrayFrom, arrayConcat} from '../collection.mjs';
 
 export default (apiDom) => {
 	const child = (el, child) => void el.appendChild(child);

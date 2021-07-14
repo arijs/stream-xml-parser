@@ -1,4 +1,4 @@
-import {arrayConcat} from '../collection';
+import {arrayConcat} from '../collection.mjs';
 
 export default ({
 	keyName='name',
