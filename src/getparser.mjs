@@ -1,8 +1,8 @@
-import XMLParser from './xmlparser';
-import TreeBuilder from './treebuilder';
-import elementDefault from './element/default';
-import defaultTagVoidMap from './htmlvoidtagmap';
-import defaultTagStrictMap from './htmlstricttagmap';
+import XMLParser from './xmlparser.mjs';
+import TreeBuilder from './treebuilder.mjs';
+import elementDefault from './element/default.mjs';
+import defaultTagVoidMap from './htmlvoidtagmap.mjs';
+import defaultTagStrictMap from './htmlstricttagmap.mjs';
 
 export default function getParser({
 	elAdapter,

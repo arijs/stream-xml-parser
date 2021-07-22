@@ -1,6 +1,6 @@
-import Printer from './printer';
-import getParser from './getparser';
-import TreeMatcher from './treematcher';
+import Printer from './printer.mjs';
+import getParser from './getparser.mjs';
+import TreeMatcher from './treematcher.mjs';
 
 export function printTreeSync({tree, elAdapter, customPrintTag, path, level, printer}) {
 	printer = printer || new Printer();

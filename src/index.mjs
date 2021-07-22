@@ -1,14 +1,14 @@
-import XMLParser from './xmlparser';
-import * as treeRender from './treerender';
-import TreeBuilder from './treebuilder';
-import TreeMatcher from './treematcher';
-import Printer from './printer';
-import elementDefault from './element/default';
-import elementDom from './element/dom';
-import elementSnabbdom from './element/snabbdom';
-import htmlVoidTagMap from './htmlvoidtagmap';
-import htmlStrictTagMap from './htmlstricttagmap';
-import * as printerTransform from './printertransform';
+import XMLParser from './xmlparser.mjs';
+import * as treeRender from './treerender.mjs';
+import TreeBuilder from './treebuilder.mjs';
+import TreeMatcher from './treematcher.mjs';
+import Printer from './printer.mjs';
+import elementDefault from './element/default.mjs';
+import elementDom from './element/dom.mjs';
+import elementSnabbdom from './element/snabbdom.mjs';
+import htmlVoidTagMap from './htmlvoidtagmap.mjs';
+import htmlStrictTagMap from './htmlstricttagmap.mjs';
+import * as printerTransform from './printertransform.mjs';
 
 XMLParser.optDefault.tagStrictMap = htmlStrictTagMap;
 
@@ -31,7 +31,7 @@ export {
 	Printer,
 	printerTransform
 };
-export { default as treeStats } from './treestats';
-export { default as testList } from './testlist';
-export { default as HTMLTypeset } from './htmltypeset';
-export { default as getParser } from './getparser';
+export { default as treeStats } from './treestats.mjs';
+export { default as testList } from './testlist.mjs';
+export { default as HTMLTypeset } from './htmltypeset.mjs';
+export { default as getParser } from './getparser.mjs';

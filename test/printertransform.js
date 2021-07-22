@@ -109,13 +109,24 @@ module.exports = function testPrinterTransform() {
 		var elAdapter = html.elAdapter;
 		printer = new Printer();
 		printer.elAdapter = elAdapter;
+		function mapSrcItem (x) { return x.source; }
+		function mapSrc(l) {
+			return l instanceof Array
+				? l.map(mapSrcItem)
+				: l;
+		}
 
 		var am = printerTransform.asyncMatcher(elAdapter);
 		am.onTest = function(opt) {
+			console.log(Object.keys(opt));
 			printTagPath(opt.path.concat(opt.node));
 		};
-		am.onTestRule = function(result, success) {
-			if (success) console.log(result);
+		am.onTestRule = function(result, success, rule) {
+			if (success) console.log(success ? 'OK ' : 'err', result, {
+				rulesName: mapSrc(rule.matcher.rulesName),
+				rulesAttrs: mapSrc(rule.matcher.rulesAttrs),
+				rulesPath: mapSrc(rule.matcher.rulesPath)
+			});
 		};
 		am.addRule({
 			matcher: {
