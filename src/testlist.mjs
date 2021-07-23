@@ -26,6 +26,9 @@ function defaultMatchAdd (result, item, group, test) {
 	}
 	group.matches.push({result, item});
 }
+function defaultResult(result) {
+	return result;
+}
 
 function testList(testList, itemList, {
 	groupListInit = defaultGroupListInit,
@@ -33,9 +36,10 @@ function testList(testList, itemList, {
 	groupAdd = defaultGroupAdd,
 	groupGetCount = defaultGroupGetCount,
 	matchAdd = defaultMatchAdd,
-	testAdapter = defaultTestAdapter
+	testAdapter = defaultTestAdapter,
+	result = defaultResult,
 } = {}) {
-	var testSrc, test, item, active, testGroup, testResult;
+	var testSrc, test, item, active, testGroup, testResult, testSuccess;
 	var activeTest, activeList, activeMatches, newAttempt;
 	var active = {
 		testList: testList.slice(),
@@ -53,7 +57,12 @@ function testList(testList, itemList, {
 		activeList = active.itemList;
 		activeMatches = active.matches;
 		if (!activeTest.length) {
-			return result(0 == activeList.length);
+			return result({
+				success: 0 == activeList.length,
+				active,
+				failed,
+				attemptsList
+			});
 		}
 		testSrc = activeTest.shift();
 		test = testAdapter(testSrc);
@@ -91,7 +100,10 @@ function testList(testList, itemList, {
 		active.forked = false;
 		item = activeList.shift();
 		testResult = test.test(item);
-		if (testResult) {
+		testSuccess = test.getSuccess instanceof Function
+			? test.getSuccess(testResult)
+			: testResult;
+		if (testSuccess) {
 			matchAdd(testResult, item, testGroup, test, testSrc);
 			activeTest.unshift(testSrc);
 			active.nextGroup = testGroup;
@@ -99,19 +111,16 @@ function testList(testList, itemList, {
 			failBranch();
 		}
 	}
-	return result(false);
+	return result({
+		success: false,
+		active,
+		failed,
+		attemptsList
+	});
 	function failBranch() {
 		failed.push(active);
 		active = null;
 		attemptsList.shift();
 		activeCount--;
-	}
-	function result(success) {
-		return {
-			success,
-			active,
-			failed,
-			attemptsList
-		};
 	}
 }

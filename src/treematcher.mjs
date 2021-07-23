@@ -20,6 +20,9 @@ export function getMatcherFrom(item, elAdapter, opt) {
 		if (item[2] instanceof Array) {
 			tm.path(item[2], opt && (opt.path || opt));
 		}
+		if (OBJECT === typeof item[3]) {
+			tm.opt = item[3];
+		}
 	} else if (OBJECT === typeof item) {
 		if (null != item.name) {
 			tm.name(item.name, item.nameOpt || opt && (opt.name || opt));
@@ -30,7 +33,16 @@ export function getMatcherFrom(item, elAdapter, opt) {
 		if (item.path instanceof Array) {
 			tm.path(item.path, item.pathOpt || opt && (opt.path || opt));
 		}
+		if (OBJECT === typeof item.opt) {
+			tm.opt = item.opt;
+		}
 	}
+	return tm;
+}
+
+export function getMatcherFromArray(list, elAdapter, opt) {
+	var tm = new TreeMatcher(elAdapter);
+	tm.subFromArray(list, opt);
 	return tm;
 }
 
@@ -155,6 +167,14 @@ var defaultOpts = {
 		normalizeAttrName: strPrepare.spaceLower,
 		normalizeAttrValue: strPrepare.spaceLower,
 	},
+	sub: {
+		repeatMin: 1,
+		repeatMax: 1,
+		repeatGreedy: false,
+		testName: true,
+		testAttrs: true,
+		testPath: true,
+	},
 };
 
 function TreeMatcher(elAdapter) {
@@ -162,6 +182,7 @@ function TreeMatcher(elAdapter) {
 	this.clearRules();
 }
 TreeMatcher.from = getMatcherFrom;
+TreeMatcher.fromArray = getMatcherFromArray;
 
 TreeMatcher.method = treeMethod;
 TreeMatcher.strPrepare = strPrepare;
@@ -173,10 +194,14 @@ TreeMatcher.prototype = {
 	rulesName: null,
 	rulesAttrs: null,
 	rulesPath: null,
+	rulesSub: null,
+	opt: null,
 	clearRules: function() {
 		this.rulesName = [];
 		this.rulesAttrs = [];
 		this.rulesPath = [];
+		this.rulesSub = [];
+		this.opt = null;
 	},
 	getStringOpt: function(str) {
 		var mat = String(str).match(reLimit);
@@ -253,7 +278,7 @@ TreeMatcher.prototype = {
 	getItemSuccessDefault: function(itemResult) {
 		return itemResult;
 	},
-	getItemSuccessOrder: function(itemResult) {
+	getItemSuccessSub: function(itemResult) {
 		return itemResult.success;
 	},
 	testValue: function(test, value) {
@@ -261,8 +286,8 @@ TreeMatcher.prototype = {
 			if (test.test(value)) return true;
 		} else if (test instanceof Function) {
 			if (test(value)) return true;
-		} else {
-			if (String(test) == value) return true;
+		} else if (STRING === typeof test) {
+			if (test == value) return true;
 		}
 		return false;
 	},
@@ -333,11 +358,18 @@ TreeMatcher.prototype = {
 		}
 		return rrUse.result;
 	},
-	testRuleOrder: function(ruleList, itemList, testAdapter) {
-		return testList(ruleList, itemList, { testAdapter });
+	testRuleOrder: function(ruleList, itemList, testAdapter, result) {
+		return testList(ruleList, itemList, { testAdapter, result });
 	},
 	name: function(testName, opt) {
-		opt = {...defaultOpts.name, source: testName, ...opt};
+		// opt = {...defaultOpts.name, source: testName, ...opt};
+		opt = this.optExtend(
+			{},
+			defaultOpts.name,
+			{ source: testName },
+			testName.opt,
+			opt
+		);
 		var normalize = this.getNormalize(opt.normalizeNodeName);
 		if ('*' === testName) testName = this.acceptAll;
 		testName = this.preTest(testName, normalize);
@@ -356,7 +388,7 @@ TreeMatcher.prototype = {
 			this.rulesName,
 			nodeName,
 			this.testNameRule,
-			method
+			method || treeMethod.orList
 		);
 	},
 	getAttrTestFromString: function(testAttr) {
@@ -442,20 +474,32 @@ TreeMatcher.prototype = {
 			method || treeMethod.orCount
 		);
 	},
-	testPathAdapter: function(m) {
+	testPathAdapter: function(m, opt) {
 		if (!m.rulesName) {
 			console.error('rulesName is '+(typeof m.rulesName));
 			console.error(m);
 		}
 		var rName = m.rulesName[0];
+		var self = this;
 		return {
 			min: rName.repeatMin,
 			max: rName.repeatMax,
 			greedy: rName.repeatGreedy,
+			source: opt.source,
+			sourceName: rName.source,
 			test: function(node) {
-				return m.testNodeName(node)
-					&& m.testNodeAttrs(node);
-			}
+				var name = m.testNodeName(node);
+				var attrs = m.testNodeAttrs(node);
+				var success =
+					self.getItemSuccessSub(name) &&
+					self.getItemSuccessSub(attrs);
+				return {
+					success,
+					name,
+					attrs,
+				};
+			},
+			getSuccess: self.getItemSuccessSub,
 		}
 	},
 	path: function(testPathSrc, opt) {
@@ -467,8 +511,17 @@ TreeMatcher.prototype = {
 		var self = this;
 		opt = this.optExtend({source: testPathSrc}, opt);
 		var m = this.initRule(opt, function(path) {
-			return self.testRuleOrder(testPath, path, self.testPathAdapter);
-		}, this.getItemSuccessOrder);
+			return self.testRuleOrder(testPath, path, function(m) {
+				return self.testPathAdapter(m, opt);
+			}, function({success, active, failed, attemptsList}) {
+				return {
+					success,
+					active,
+					failedCount: failed.length,
+					attemptsCount: attemptsList.length,
+				};
+			});
+		}, this.getItemSuccessSub);
 		this.rulesPath.push(m);
 	},
 	testPathRule: function(rule, path) {
@@ -484,7 +537,7 @@ TreeMatcher.prototype = {
 	},
 	testAll: function(testNode, testPath) {
 		var name, attr, path, success = false;
-		name = this.testNodeName(testNode, treeMethod.orList);
+		name = this.testNodeName(testNode);
 		if (name.success) {
 			attr = this.testNodeAttrs(testNode);
 			if (attr.success) {
@@ -493,5 +546,58 @@ TreeMatcher.prototype = {
 			}
 		}
 		return { success, name, attr, path };
-	}
+	},
+	sub: function(testSubSrc, opt) {
+		// opt = {...defaultOpts.name, source: testName, ...opt};
+		var testSub = getMatcherFrom(testSubSrc, this.elAdapter, opt);
+		opt = this.optExtend(
+			{},
+			defaultOpts.sub,
+			{ source: testSubSrc },
+			testSub.opt,
+			opt
+		);
+		var m = this.initRule(opt, function({node: testNode, path: testPath}) {
+			var success = true;
+			var name;
+			var attrs;
+			var path;
+			if (success && m.testName) {
+				name = testSub.testNodeName(testNode);
+				success = name.success;
+			}
+			if (success && m.testAttrs) {
+				attrs = testSub.testNodeAttrs(testNode);
+				success = attrs.success;
+			}
+			if (success && m.testPath) {
+				path = testSub.testPath(testPath);
+				success = path.success;
+			}
+			return {
+				name,
+				attrs,
+				path,
+				success,
+			};
+		}, this.getItemSuccessSub);
+		this.rulesSub.push(m);
+	},
+	subFromArray: function(list, preOpt) {
+		var c = list.length;
+		for (var i = 0; i < c; i++) {
+			this.sub(list[i], preOpt);
+		}
+	},
+	testSubRule: function(rule, sub) {
+		return rule.test(sub);
+	},
+	testNodeSub: function(node, path, method) {
+		return this.testRuleItem(
+			this.rulesSub,
+			{node, path},
+			this.testSubRule,
+			method || treeMethod.orList
+		);
+	},
 };

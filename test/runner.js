@@ -4,8 +4,10 @@ var XMLParser = require('..');
 var testList = require('./testlist');
 var printerTransform = require('./printertransform');
 var TreeBuilder = XMLParser.TreeBuilder;
+var TreeMatcher = XMLParser.TreeMatcher;
 var treeStats = XMLParser.treeStats;
 var treeRender = XMLParser.treeRender;
+var treeWalk = XMLParser.treeWalk;
 var elementDefault = XMLParser.elementDefault;
 var elementSnabbdom = XMLParser.elementSnabbdom;
 var Printer = XMLParser.Printer;
@@ -169,9 +171,9 @@ function parseTree(fpath, callback) {
 		xp.end();
 		console.log('finished reading '+fpath, getStateName(xp), JSON.stringify(xp.buffer));
 		var err = tb.errors;
-		var result = tb.root.tag.children;
+		var result = tb.root.tag;
 		console.log('tb', err.length ? 'Errors' : 'Success', err);
-		recursivePrint(result, 2, '@ ', elAdapter);
+		recursivePrint(result.children, 2, '@ ', elAdapter);
 		callback instanceof Function && callback(err, result, elAdapter, tb, xp);
 	});
 	rs.on('data', function(text) {
@@ -184,9 +186,17 @@ function printTree(filePath) {
 		if (err.length) return;
 		var printer = new Printer();
 		printer.elAdapter = elementDefault();
-		var out = printer.print(result, 0);
+		var out = printer.print(result.children, 0);
 		console.log(out);
 	});
+}
+
+function printTagPath(path, printer) {
+	var pc = path.length;
+	for (var i = 0; i < pc; i++) {
+		path[i] = '> '+i+': '+printer.printTagOpen(path[i]);
+	}
+	console.log('\n'+path.join('\n')+'\n');
 }
 
 module.exports.parseFile = parseFile;
@@ -227,7 +237,7 @@ module.exports.treeConvert = function() {
 		var targetAdapter = elementSnabbdom();
 		var plugin = treeRender.adapterPluginConvertElement(targetAdapter);
 		var ctx = {};
-		result = treeRender.treeRenderPlugin(result, sourceAdapter, ctx, plugin);
+		result = treeRender.treeRenderPlugin(result.children, sourceAdapter, ctx, plugin);
 		console.log('=== converted ===');
 		recursivePrint(result, 2, '$ ', targetAdapter);
 	});
@@ -244,6 +254,67 @@ module.exports.printer = function() {
 module.exports.strictTag = function() {
 	return printTree(__dirname+'/examples/strict-tag.html');
 };
+
+module.exports.treeSearch = function() {
+	return parseTree(__dirname+'/examples/template.html', function(err, result, elAdapter) {
+		if (err.length) return;
+		console.log(result);
+		var tm1 = TreeMatcher.fromArray([
+			['html', [['lang', 'en', '<1>'], [null, null, '<0>']], []],
+			['link', [['rel', 'stylesheet', '<1>'], ['href', '/css/index.css', '<1>'], [null, null, '<0>']], ['html', 'head']],
+			['script', [[null, null, '<0>']], ['html', 'head']]
+		], elAdapter);
+		var tm2 = TreeMatcher.fromArray([
+			['head', [[null, null, '<0>']], ['html']],
+			['title', [[null, null, '<0>']], ['html', 'head']],
+			['body', [[null, null, '<0>']], ['html']],
+		], elAdapter);
+		var tm3 = TreeMatcher.fromArray([
+			['meta', [['charset', 'UTF-8', '<1>'], [null, null, '<0>']], ['html', 'head']],
+			['meta', [['name', 'description', '<1>'], ['content', null, '<1>'], [null, null, '<0>']], ['html', 'head']],
+			['div', [['id', 'root', '<1>'], [null, null, '<0>']], ['html', 'body']],
+			['script', [[null, null, '<0>']], ['html', 'body']]
+		], elAdapter);
+		var tm4 = TreeMatcher.fromArray([
+			['meta', [['name', 'viewport', '<1>'], ['content', null, '<1>'], [null, null, '<0>']], ['html', 'head']],
+			['meta', [['name', 'theme-color', '<1>'], ['content', '#ffffff', '<1>'], [null, null, '<0>']], ['html', 'head']],
+			['script', [['src', '/js/index.js', '<1>'], [null, null, '<0>']], ['html', 'body']],
+		], elAdapter);
+		var printer = new Printer({elAdapter: elAdapter});
+		treeWalk(result, elAdapter, {
+			onNode: function(node, path) {
+				var test, match = 'not-found';
+				path = path.slice(1);
+				switch (undefined) {
+					default:
+					test = tm1.testNodeSub(node, path);
+					if (test.success) {
+						match = 'tm1';
+						break;
+					}
+					test = tm2.testNodeSub(node, path);
+					if (test.success) {
+						match = 'tm2';
+						break;
+					}
+					test = tm3.testNodeSub(node, path);
+					if (test.success) {
+						match = 'tm3';
+						break;
+					}
+					test = tm4.testNodeSub(node, path);
+					if (test.success) {
+						match = 'tm4';
+						break;
+					}
+					// test = undefined;
+				}
+				printTagPath(path.concat([node]), printer);
+				console.log(match, util.inspect(test, {depth: 3, colors: true}));
+			}
+		})
+	});
+}
 
 module.exports.testList = testList;
 module.exports.printerTransform = printerTransform;

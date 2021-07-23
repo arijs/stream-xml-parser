@@ -1,7 +1,8 @@
 import XMLParser from './xmlparser.mjs';
-import * as treeRender from './treerender.mjs';
 import TreeBuilder from './treebuilder.mjs';
 import TreeMatcher from './treematcher.mjs';
+import * as treeRender from './treerender.mjs';
+import treeWalk from './treewalk.mjs';
 import Printer from './printer.mjs';
 import elementDefault from './element/default.mjs';
 import elementDom from './element/dom.mjs';
@@ -23,6 +24,7 @@ export {
 	TreeBuilder,
 	TreeMatcher,
 	treeRender,
+	treeWalk,
 	elementDefault,
 	elementDom,
 	elementSnabbdom,
