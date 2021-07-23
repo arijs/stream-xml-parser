@@ -124,10 +124,6 @@ export var treeMethod = {
 			};
 		},
 		final: function(result) {
-			if (0 != result.nomatch) {
-				result.success = false;
-				return result;
-			}
 			var rules = result.rules;
 			var count = result.count;
 			var rc = rules.length;
