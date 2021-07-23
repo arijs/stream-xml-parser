@@ -41,12 +41,12 @@ export default (apiDom) => {
 		attrsAdd: (el, attr) => el.setAttribute(attr.name, attr.value),
 		attrsEach: (el, handler) => {
 			var list = el.attributes;
-			if (!list) console.log('ElementDom attrs not found', el);
+			// if (!list) console.log('ElementDom attrs not found', el);
 			var ctx = {
 				_break: 1 << 0,
 				_remove: 1 << 1
 			};
-			var count = list.length;
+			var count = list && list.length || 0;
 			for (var i = 0; i < count; i++) {
 				var a = list[i];
 				var ret = handler.call(ctx, a.name, a.value, a, i);
