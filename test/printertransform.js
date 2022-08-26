@@ -89,6 +89,16 @@ function nodeContentAsTree(content, opt) {
 	return elAdapter.childrenGet(frag);
 }
 
+function simpleLink(href, text, opt) {
+	var elAdapter = opt.elAdapter;
+	var frag = elAdapter.initRoot();
+	var anchor = elAdapter.initName('a');
+	elAdapter.attrsAdd(anchor, { name: 'href', value: href });
+	elAdapter.childText(anchor, text);
+	elAdapter.childElement(frag, anchor);
+	return elAdapter.childrenGet(frag);
+}
+
 function printTagPath(path) {
 	var pc = path.length;
 	for (var i = 0; i < pc; i++) {
@@ -117,22 +127,38 @@ module.exports = function testPrinterTransform() {
 		}
 
 		var am = printerTransform.asyncMatcher(elAdapter);
-		am.onTest = function(opt) {
-			console.log(Object.keys(opt));
-			printTagPath(opt.path.concat(opt.node));
+		am.onTest = function() {
+			// console.log(Object.keys(opt));
+			// printTagPath(opt.path.concat(opt.node));
 		};
-		am.onTestRule = function(result, success, rule) {
-			if (success) console.log(success ? 'OK ' : 'err', result, {
-				rulesName: mapSrc(rule.matcher.rulesName),
-				rulesAttrs: mapSrc(rule.matcher.rulesAttrs),
-				rulesPath: mapSrc(rule.matcher.rulesPath)
-			});
+		am.onTestRule = function(result, success, rule, opt) {
+			// if (success) {
+			if (result.name.success && result.attr.success) {
+			// if (rule.matcher.debugPath) {
+				console.log(Object.keys(opt));
+				printTagPath(opt.path.concat(opt.node));
+
+				var resultPathYes0 = result.path.yes[0];
+				var resultPathNot0 = result.path.not[0];
+				console.log(success ? 'OK ' : 'err', result, {
+					rulesName: mapSrc(rule.matcher.rulesName),
+					rulesAttrs: mapSrc(rule.matcher.rulesAttrs),
+					rulesPath: mapSrc(rule.matcher.rulesPath),
+					resultPathYes0,
+					resultPathYes0_active_itemList: resultPathYes0?.active?.itemList,
+					resultPathYes0_active_matches_2: resultPathYes0?.active?.matches?.[2],
+					resultPathNot0,
+					resultPathNot0_active_itemList: resultPathNot0?.active?.itemList,
+					resultPathNot0_failed_0: resultPathNot0?.failed?.[0],
+					resultPathNot0_failed_0_matches_2: resultPathNot0?.failed?.[0]?.matches?.[2],
+				});
+			}
 		};
 		am.addRule({
 			matcher: {
 				name: 'div',
 				attrs: [['id', 'root'], [null, null, '<0>']],
-				path: ['html', 'body']
+				path: ['html', 'body', '* <0>']
 			},
 			callback: function(opt) {
 				return opt.callback(null, {
@@ -191,6 +217,22 @@ module.exports = function testPrinterTransform() {
 				return opt.callback(null, {
 					name: 'document description',
 					full: {tree: nodeContentAsTree('Replaced Description from PrinterTransform', opt)}
+				});
+			}
+		});
+		am.addRule({
+			matcher: {
+				name: 'div',
+				attrs: [['class', /\babout__container\b/], [null, null, '<0>']],
+				path: [], //'html', 'body',
+				debugPath: true,
+				// opt: {}
+			},
+			// opt: {},
+			callback: function(opt) {
+				return opt.callback(null, {
+					name: 'footer append',
+					append: {tree: simpleLink('/link/path', 'Link Text', opt)}
 				});
 			}
 		});

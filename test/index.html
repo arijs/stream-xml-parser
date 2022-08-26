@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="UTF-8">
+	<meta http-equiv="X-UA-Compatible" content="IE=edge">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<title>Document</title>
+</head>
+<body>
+<script type="module">
+
+// This is meant to be tested on a browser
+// Run `npx http-server ./` from the package root
+// and open http://localhost:8080/test/
+
+import { loadAjaxPromise } from 'https://unpkg.com/@arijs/frontend@0.3.0/src/client/loaders/ajax.mjs'
+import printerTransform from './printertransform.mjs'
+
+let html = ''
+
+async function load() {
+	const { data } = await loadAjaxPromise({ url: './examples/template.html' })
+	return html = data
+}
+
+function run() {
+	return new Promise((resolve, reject) =>
+		printerTransform(html, (err, data) =>
+			err ? reject(err) : resolve(data)
+		)
+	)
+}
+
+Object.assign(window, { load, run })
+
+</script>
+</body>
+</html>

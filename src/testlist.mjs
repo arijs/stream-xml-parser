@@ -112,7 +112,7 @@ function testList(testList, itemList, {
 		}
 	}
 	return result({
-		success: false,
+		success: 0 === failed.length,
 		active,
 		failed,
 		attemptsList

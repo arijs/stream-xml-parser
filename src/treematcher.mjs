@@ -99,6 +99,12 @@ export var treeMethod = {
 				result: a,
 				_break: b
 			};
+		},
+		final: function(result) {
+			if (0 === result.not.length) {
+				result.success = true
+			}
+			return result
 		}
 	},
 	orCount: {
@@ -359,10 +365,16 @@ TreeMatcher.prototype = {
 	},
 	name: function(testName, opt) {
 		// opt = {...defaultOpts.name, source: testName, ...opt};
+		if (STRING === typeof testName) {
+			var testOpt = this.getStringOpt(testName);
+			testName = testOpt.str;
+			testOpt = testOpt.opt;
+		}
 		opt = this.optExtend(
 			{},
 			defaultOpts.name,
 			{ source: testName },
+			testOpt,
 			testName.opt,
 			opt
 		);
@@ -509,12 +521,14 @@ TreeMatcher.prototype = {
 		var m = this.initRule(opt, function(path) {
 			return self.testRuleOrder(testPath, path, function(m) {
 				return self.testPathAdapter(m, opt);
-			}, function({success, active, failed, attemptsList}) {
+			}, function({success, active, failed, attemptsList: attempts}) {
 				return {
 					success,
 					active,
 					failedCount: failed.length,
-					attemptsCount: attemptsList.length,
+					attemptsCount: attempts.length,
+					failed,
+					attempts,
 				};
 			});
 		}, this.getItemSuccessSub);

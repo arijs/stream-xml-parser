@@ -188,12 +188,13 @@ export function asyncMatcher(elAdapter) {
 			var rc = rules.length;
 			api.onTest(opt);
 			for (var i = 0; i < rc; i++) {
-				var isSuccess = rules[i].isSuccess || api.isSuccess;
-				var result = rules[i].matcher.testAll(node, path);
+				var rule = rules[i];
+				var isSuccess = rule.isSuccess || api.isSuccess;
+				var result = rule.matcher.testAll(node, path);
 				var success = isSuccess(result);
-				api.onTestRule(result, success, rules[i], opt);
+				api.onTestRule(result, success, rule, opt);
 				if (success) {
-					return rules[i].callback(opt);
+					return rule.callback(opt);
 				}
 			}
 			opt.callback();
