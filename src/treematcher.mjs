@@ -258,7 +258,7 @@ TreeMatcher.prototype = {
 							target.repeatMax = tmax;
 						break;
 					case 'repeatGreedy':
-						tgre = target.repeatGreedy;
+						tgre = source.repeatGreedy;
 						if (!!tgre === tgre)
 							target.repeatGreedy = tgre;
 						break;

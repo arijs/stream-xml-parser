@@ -7,9 +7,10 @@ function defaultTestAdapter (x) {
 function defaultGroupListInit () {
 	return [];
 }
-function defaultGroupInit (test) {
+function defaultGroupInit (test, testSrc) {
 	return {
 		test: test,
+		testSrc: testSrc,
 		matches: []
 	};
 }
@@ -19,8 +20,8 @@ function defaultGroupAdd (group, groupList) {
 function defaultGroupGetCount(group) {
 	return group.matches.length;
 }
-function defaultMatchAdd (result, item, group, test) {
-	if (group.test !== test) {
+function defaultMatchAdd (result, item, group, test, testSrc) {
+	if (group.testSrc !== testSrc) {
 		console.error(test, '!==', group.test);
 		throw new Error('Object "test" in group is not same than "test" added from match');
 	}
@@ -57,18 +58,23 @@ function testList(testList, itemList, {
 		activeList = active.itemList;
 		activeMatches = active.matches;
 		if (!activeTest.length) {
-			return result({
-				success: 0 == activeList.length,
-				active,
-				failed,
-				attemptsList
-			});
+			if (!activeList.length) {
+				return result({
+					success: true,
+					active,
+					failed,
+					attemptsList
+				});
+			} else {
+				failBranch();
+				continue;
+			}
 		}
 		testSrc = activeTest.shift();
 		test = testAdapter(testSrc);
 		testGroup = active.nextGroup;
 		if (!testGroup) {
-			testGroup = groupInit(test);
+			testGroup = groupInit(test, testSrc);
 			groupAdd(testGroup, activeMatches);
 		}
 		active.nextGroup = null;
@@ -84,6 +90,7 @@ function testList(testList, itemList, {
 		if (groupGetCount(testGroup) >= test.min && !active.forked) {
 			newAttempt = {
 				testList: activeTest.slice(),
+				// testList: [testSrc].concat(activeTest),
 				itemList: activeList.slice(),
 				matches: activeMatches.slice(),
 				nextMatch: null,

@@ -33,9 +33,10 @@ function parseString(str, elAdapter) {
 	return parser.getResult();
 }
 
-export function prepare(rep, level, path, elAdapter, printer, transformName) {
+export function prepare(rep, level, path, elAdapter, printer, transformName, noFormatDefault) {
 	var {name, tree, text, noFormat} = rep;
 	var error;
+	if (null == noFormat) noFormat = noFormatDefault;
 	if (null == tree && !noFormat) {
 		rep = parseString(String(text || ''), elAdapter);
 		({tree, error} = rep);
@@ -86,7 +87,7 @@ export function apply(rep, level, path, elAdapter, printer) {
 	return {errors, text};
 	function prepareRep(trep, add) {
 		if (trep) {
-			trep = prepare(trep, level + (add || 0), path, elAdapter, printer, rep.name);
+			trep = prepare(trep, level + (add || 0), path, elAdapter, printer, rep.name, rep.noFormat);
 			if (trep.error) errors.push(trep.error);
 			return String(trep.text || '');
 		} else {

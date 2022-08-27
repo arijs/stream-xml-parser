@@ -122,18 +122,19 @@ function printHtml(html, cbHtml) {
 
 	var am = printerTransform.asyncMatcher(elAdapter);
 	am.onTest = function(opt) {
-		console.log(`onTest`, Object.keys(opt));
-		printTagPath(opt.path.concat(opt.node));
+		// console.log(`onTest`, Object.keys(opt));
+		// printTagPath(opt.path.concat(opt.node));
 	};
 	am.onTestRule = function(result, success, rule, opt) {
-		// if (success) {
-		if (result.name.success && result.attr.success) {
-		// if (rule.matcher.debugPath) {
+		if (rule.logRule)
+		// if (success)
+		if (result.name.success && result.attr.success)
+		{
 			console.log(Object.keys(opt));
 			printTagPath(opt.path.concat(opt.node));
 
-			var resultPathYes0 = result.path.yes[0];
-			var resultPathNot0 = result.path.not[0];
+			var resultPathYes0 = result.path?.yes[0];
+			var resultPathNot0 = result.path?.not[0];
 			console.log(success ? 'OK ' : 'err', result, {
 				rulesName: mapSrc(rule.matcher.rulesName),
 				rulesAttrs: mapSrc(rule.matcher.rulesAttrs),
@@ -150,15 +151,45 @@ function printHtml(html, cbHtml) {
 	};
 	am.addRule({
 		matcher: {
+			name: 'html',
+			attrs: [['lang', 'en'], [null, null, '<0>']],
+			path: []
+		},
+		logRule: true,
+		callback: function(opt) {
+			return opt.callback(null, {
+				name: 'before root html',
+				noFormat: true,
+				before: {text: 'This is the root element\n'}
+			});
+		}
+	});
+	am.addRule({
+		matcher: {
 			name: 'div',
 			attrs: [['id', 'root'], [null, null, '<0>']],
-			path: ['html', 'body', '* <0>']
+			path: ['html', 'body']
 		},
 		callback: function(opt) {
 			return opt.callback(null, {
 				name: 'comp html',
 				noFormat: true,
-				children: {text: '<div class="app--root">App</div>', noFormat: true}
+				children: {text: '<div class="app--root">App</div>'}
+			});
+		}
+	});
+	am.addRule({
+		matcher: {
+			name: 'div',
+			attrs: [['id', 'root'], [null, null, '<0>']],
+			path: ['html', 'body', '* <+>']
+		},
+		logRule: true,
+		callback: function(opt) {
+			return opt.callback(null, {
+				name: 'comp html 2',
+				noFormat: true,
+				children: {text: 'This is the first root'}
 			});
 		}
 	});
@@ -197,7 +228,7 @@ function printHtml(html, cbHtml) {
 			return opt.callback(null, {
 				name: 'document title',
 				noFormat: true,
-				children: {text: 'Replaced Title', noFormat: true}
+				children: {text: 'Replaced Title'}
 			});
 		}
 	});
@@ -218,11 +249,19 @@ function printHtml(html, cbHtml) {
 		matcher: {
 			name: 'div',
 			attrs: [['class', /\babout__container\b/], [null, null, '<0>']],
-			path: [], //'html', 'body',
-			debugPath: true,
-			// opt: {}
+			path: [
+				'* <*>',
+				['div', [
+					['class', /\bmycompany-content\b/],
+					[null, null, '<0>']
+				]],
+				['div', [
+					['class', /\babout\b/],
+					[null, null, '<0>']
+				]]
+			],
 		},
-		// opt: {},
+		logRule: true,
 		callback: function(opt) {
 			return opt.callback(null, {
 				name: 'footer append',
