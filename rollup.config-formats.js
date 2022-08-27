@@ -3,7 +3,6 @@ import path from 'path';
 // import commonjs from 'rollup-plugin-commonjs';
 // import { uglify } from 'rollup-plugin-uglify';
 import { terser } from "rollup-plugin-terser";
-import minify from 'rollup-plugin-babel-minify';
 import buble from '@rollup/plugin-buble';
 import inject from '@rollup/plugin-inject';
 import pkg from './package.json';
@@ -69,10 +68,7 @@ format({
 		format: 'esm',
 		indent: ''
 	}
-}, minify({
-	comments: false,
-	sourceMap: false
-}));
+});
 format({
 	input: 'src/index.mjs',
 	output: {
