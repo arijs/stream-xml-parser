@@ -2,10 +2,10 @@ import path from 'path';
 // import resolve from 'rollup-plugin-node-resolve';
 // import commonjs from 'rollup-plugin-commonjs';
 // import { uglify } from 'rollup-plugin-uglify';
-import { terser } from "rollup-plugin-terser";
+import terser from "@rollup/plugin-terser";
 import buble from '@rollup/plugin-buble';
 import inject from '@rollup/plugin-inject';
-import pkg from './package.json';
+import pkg from './package.json' with { type: 'json' };
 
 function beforeExt(name, add) {
 	var i = name.lastIndexOf('.');
