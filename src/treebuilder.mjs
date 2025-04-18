@@ -337,9 +337,10 @@ TreeBuilder.prototype = {
 	streamEnded: function(ev) {
 		var tagOpen = this.getTagRoot();
 		this.closeTagMatch = tagOpen;
-		this.resolveUnclosedTagsOrError(tagOpen.unclosedTags, ev, tagOpen);
-		this.closeTagMatch = null;
-		// this.resolveUnclosedTagsOrError(this.path.slice(), ev);
+		if (tagOpen) {
+			this.resolveUnclosedTagsOrError(tagOpen.unclosedTags, ev, tagOpen);
+			this.closeTagMatch = null;
+		}
 	},
 	events: events
 };

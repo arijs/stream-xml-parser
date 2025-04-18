@@ -152,17 +152,15 @@ function parseTree(fpath, callback) {
 			}
 			var bc = getSimpleBreadcrumb(ev);
 			console.log(name, ev.error, getSimplePath(ev), bc);
-		}
+		},
+		tagVoidMap: XMLParser.htmlVoidTagMap,
 	});
 	tb.unclosedTagChildren = function(tag, index, ev){
 		console.log('~ unclosedTag', index, getSimplePath(ev));
 		console.log(tag);
 		return 0;
 	};
-	var xp = new XMLParser({
-		event: tb.parserEvent.bind(tb),
-		tagVoidMap: XMLParser.htmlVoidTagMap,
-	});
+	var xp = new XMLParser(tb.parserEvent.bind(tb));
 	
 	// var fpath = '../examples/not-pretty.xml';
 	// var fpath = '../examples/test.html';
@@ -231,6 +229,10 @@ module.exports.commentStream = function() {
 
 module.exports.treeBuilder = function() {
 	return parseTree(__dirname+'/examples/simple.xml');
+};
+
+module.exports.treeSimple2 = function() {
+	return parseTree(__dirname+'/examples/simple2.html');
 };
 
 module.exports.treeConvert = function() {
