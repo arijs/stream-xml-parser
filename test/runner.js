@@ -159,7 +159,10 @@ function parseTree(fpath, callback) {
 		console.log(tag);
 		return 0;
 	};
-	var xp = new XMLParser(tb.parserEvent.bind(tb));
+	var xp = new XMLParser({
+		event: tb.parserEvent.bind(tb),
+		tagVoidMap: XMLParser.htmlVoidTagMap,
+	});
 	
 	// var fpath = '../examples/not-pretty.xml';
 	// var fpath = '../examples/test.html';
@@ -314,7 +317,15 @@ module.exports.treeSearch = function() {
 			}
 		})
 	});
-}
+};
+
+module.exports.scSimple = function() {
+	return parseTree(__dirname+'/examples/selfclose-simple.html');
+};
+
+module.exports.scDebug = function() {
+	return parseTree(__dirname+'/examples/selfclose-debug.html');
+};
 
 module.exports.testList = testList;
 module.exports.printerTransform = printerTransform;

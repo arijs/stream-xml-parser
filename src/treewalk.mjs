@@ -1,12 +1,18 @@
 
-var _skip = {};
-var _abort = {};
+var _skip = 1;
+var _abort = 2;
+var _remove = 4;
+export var treeWalkIsSkip = ret => ret & _skip;
+export var treeWalkIsAbort = ret => ret & _abort;
+export var treeWalkIsRemove = ret => ret & _remove;
 
-function treeWalk(node, elAdapter, walkFns, path) {
-	var ret = undefined;
+function treeWalk(node, elAdapter, walkFns, path, pathCtx = []) {
+	var ret = 0;
 	var ctx = {
-		skip() { ret = _skip; },
-		abort() { ret = _abort; },
+		pathCtx,
+		skip() { ret |= _skip; },
+		abort() { ret |= _abort; },
+		remove() { ret |= _remove; },
 	};
 	var {onNode, onText, onComment, onDeclaration, onInstruction} = walkFns;
 	if (elAdapter.isText(node)) {
@@ -25,17 +31,27 @@ function treeWalk(node, elAdapter, walkFns, path) {
 	if (!(path instanceof Array)) path = [];
 	if (onNode) onNode.call(ctx, node, path, elAdapter);
 	if (ret) return ret;
-	path = path.concat([node]);
+	path = [...path, node];
 	var rc = elAdapter.childCount(node);
 	for (var i = 0; i < rc; i++) {
 		ret = treeWalk(
 			elAdapter.childIndexGet(node, i),
 			elAdapter,
 			walkFns,
-			path
+			path,
+			[...pathCtx, {
+				index: i,
+				count: rc,
+			}]
 		);
-		if (ret === _abort) return ret;
+		if (treeWalkIsRemove(ret)) {
+			elAdapter.childSplice(node, i, 1)
+			i--, rc--
+		}
+		if (treeWalkIsAbort(ret)) return ret;
+		ret = 0;
 	}
+	return ret;
 }
 
 export default treeWalk;

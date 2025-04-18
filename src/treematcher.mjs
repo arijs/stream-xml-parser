@@ -107,6 +107,29 @@ export var treeMethod = {
 			return result
 		}
 	},
+	orListItem: {
+		init: function(rules) {
+			return {
+				yes: [],
+				not: [],
+				success: rules.length === 0
+			};
+		},
+		reduce: function(b, a, {item}) {
+			a[b?'yes':'not'].push(item);
+			a.success = b || a.success;
+			return {
+				result: a,
+				_break: b
+			};
+		},
+		final: function(result) {
+			if (0 === result.not.length) {
+				result.success = true
+			}
+			return result
+		}
+	},
 	orCount: {
 		init: function(rules) {
 			var count = [], rc = rules.length;

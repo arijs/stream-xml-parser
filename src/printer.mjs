@@ -73,7 +73,8 @@ Printer.prototype = {
 	isStrictTag: function(node) {
 		var name = this.elAdapter.nameGet(node);
 		name = String(name || '').toLowerCase();
-		return this.tagStrictMap[name];
+		var tsm = this.tagStrictMap;
+		return tsm ? tsm[name] : undefined;
 	},
 	isStrictPath: function(path) {
 		var plen = path.length;

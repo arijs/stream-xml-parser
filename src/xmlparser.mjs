@@ -30,6 +30,7 @@ var ev_endCdata = {name:'endCdata'};
 var ev_tagName = {name:'tagName'};
 var ev_tagAttribute = {name:'tagAttribute'};
 var ev_info = {name:'info'};
+var ev_endStream = {name:'endStream'};
 
 var reSpace = /\s/;
 var strCdata = '[CDATA[';
@@ -672,9 +673,12 @@ XMLParser.prototype = {
 		}
 		this.c = void 0;
 		this.state = state;
-		if (final && state === st_TEXT && buf) {
-			event(ev_text, '360');
-			buf = '';
+		if (final) {
+			if (state === st_TEXT && buf) {
+				event(ev_text, '360');
+				buf = '';
+			}
+			event(ev_endStream, '370');
 		}
 		this.buffer = buf;
 	},

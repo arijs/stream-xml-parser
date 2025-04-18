@@ -118,7 +118,11 @@ var events = {
 	},
 	info: function(ev) {
 		this.treeEvent('info', null, ev);
-	}
+	},
+	endStream: function(ev) {
+		this.streamEnded(ev);
+		this.treeEvent('endStream', null, ev);
+	},
 };
 
 function noop(){}
@@ -249,7 +253,7 @@ TreeBuilder.prototype = {
 					'Could not find child tag '+JSON.stringify(ucTag.name)+
 					' in parent tag '+JSON.stringify(ucParent.name)+
 					' list of '+ucSiblings.length+' children',
-					103
+					104
 				);
 				this.errors.push(err);
 				this.treeEvent('error', err, ev);
@@ -267,6 +271,23 @@ TreeBuilder.prototype = {
 			}
 		}
 		return unclosed;
+	},	
+	resolveUnclosedTagsOrError: function(unclosedTags, ev, tagOpen) {
+		var unclosedResult = this.resolveUnclosedTags(unclosedTags, ev);
+		var uclen = unclosedResult.length;
+		if (uclen) {
+			err = new TreeError(
+				( tagOpen
+				? (tagOpen.selfClose ? 'Self closing tag ' :
+					tagOpen.close ? 'Close tag ' : 'Open tag ')+
+					JSON.stringify(tagOpen.name)
+				: 'Stream end'
+				)+' with '+uclen+' child open tags',
+				tagOpen ? tagOpen.selfClose ? 101 : 100 : 102
+			);
+			this.errors.push(err);
+			this.treeEvent('unclosedTags', err, ev);
+		}
 	},
 	findAndCloseTag: function(ev) {
 		var err;
@@ -276,22 +297,12 @@ TreeBuilder.prototype = {
 		if (tagOpen) {
 			var breadcrumb = tagOpen.match;
 			if (streamTag.selfClose) breadcrumb.tag.selfClose = true;
-			var unclosed = this.resolveUnclosedTags(tagOpen.unclosedTags, ev);
-			var uclen = unclosed.length;
-			if (uclen) {
-				err = new TreeError(
-					(streamTag.selfClose ? 'Self closing tag ' : 'Close tag ')+
-					JSON.stringify(streamTag.name)+' with '+uclen+' open tags',
-					streamTag.selfClose ? 101 : 100
-				);
-				this.errors.push(err);
-				this.treeEvent('unclosedTags', err, ev);
-			}
+			this.resolveUnclosedTagsOrError(tagOpen.unclosedTags, ev, tagOpen);
 			this.treeEvent('tagCloseStart', null, ev);
 		} else {
 			err = new TreeError(
 				'Close tag '+JSON.stringify(streamTag.name)+' without opening tag',
-				102
+				103
 			);
 			this.errors.push(err);
 			this.treeEvent('unopenedTag', err, ev);
@@ -312,6 +323,23 @@ TreeBuilder.prototype = {
 			pathIndex: i,
 			unclosedTags: p.slice(i+1)
 		};
+	},
+	getTagRoot: function() {
+		var p = this.path;
+		if (p.length) {
+			return {
+				match: p[0],
+				pathIndex: 0,
+				unclosedTags: p.slice(1)
+			};
+		}
+	},
+	streamEnded: function(ev) {
+		var tagOpen = this.getTagRoot();
+		this.closeTagMatch = tagOpen;
+		this.resolveUnclosedTagsOrError(tagOpen.unclosedTags, ev, tagOpen);
+		this.closeTagMatch = null;
+		// this.resolveUnclosedTagsOrError(this.path.slice(), ev);
 	},
 	events: events
 };
