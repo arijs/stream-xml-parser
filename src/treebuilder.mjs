@@ -325,14 +325,11 @@ TreeBuilder.prototype = {
 		};
 	},
 	getTagRoot: function() {
-		var p = this.path;
-		if (p.length) {
-			return {
-				match: p[0],
-				pathIndex: 0,
-				unclosedTags: p.slice(1)
-			};
-		}
+		return {
+			match: this.currentScope,
+			pathIndex: -1,
+			unclosedTags: this.path.slice(0),
+		};
 	},
 	streamEnded: function(ev) {
 		var tagOpen = this.getTagRoot();
