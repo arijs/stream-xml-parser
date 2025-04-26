@@ -244,12 +244,15 @@ TreeBuilder.prototype = {
 			var ucTag = uc.tag;
 			var ucEv = this.getEventObject('resolveUnclosedTags', null, ev);
 			var ucCount = this.unclosedTagChildren(ucTag, ucIndex, ucEv);
-			if (ucCount === void 0) break;
+			// We can have a code like this: "<br><i>foo</i>"
+			// The <i> tag should be considered outside the <br> tag
+			// That's why we need to continue below and not break.
+			// if (ucCount === void 0) break;
 			var ucParent = uc.parentScope.tag;
 			var ucSiblings = ucParent.children;
 			var ucSelfPos = ucSiblings.indexOf(ucTag);
-			if (-1 === ucSelfPos) {
-				err = new TreeError(
+			if (ucCount != void 0 && -1 === ucSelfPos) {
+				var err = new TreeError(
 					'Could not find child tag '+JSON.stringify(ucTag.name)+
 					' in parent tag '+JSON.stringify(ucParent.name)+
 					' list of '+ucSiblings.length+' children',
@@ -259,11 +262,13 @@ TreeBuilder.prototype = {
 				this.treeEvent('error', err, ev);
 				break;
 			} else {
-				var ucRemCount = ucTag.children.length - ucCount;
-				var ucRem = this.element.childSplice(ucTag, ucCount, ucRemCount, [], ev, this);
-				this.element.childSplice(ucParent, ucSelfPos+1, 0, ucRem, ev, this);
-				this.treeEvent('tagCloseStart', null, ev);
-				this.treeEvent('tagCloseEnd', null, ev);
+				if (ucCount != void 0) {
+					var ucRemCount = ucTag.children.length - ucCount;
+					var ucRem = this.element.childSplice(ucTag, ucCount, ucRemCount, [], ev, this);
+					this.element.childSplice(ucParent, ucSelfPos+1, 0, ucRem, ev, this);
+					this.treeEvent('tagCloseStart', null, ev);
+					this.treeEvent('tagCloseEnd', null, ev);
+				}
 				unclosed.pop();
 				uclen--;
 				this.path.pop();
@@ -290,7 +295,6 @@ TreeBuilder.prototype = {
 		}
 	},
 	findAndCloseTag: function(ev) {
-		var err;
 		var streamTag = ev.tag;
 		var tagOpen = this.findTagOpen(streamTag, ev);
 		this.closeTagMatch = tagOpen;
@@ -300,7 +304,7 @@ TreeBuilder.prototype = {
 			this.resolveUnclosedTagsOrError(tagOpen.unclosedTags, ev, tagOpen);
 			this.treeEvent('tagCloseStart', null, ev);
 		} else {
-			err = new TreeError(
+			var err = new TreeError(
 				'Close tag '+JSON.stringify(streamTag.name)+' without opening tag',
 				103
 			);
