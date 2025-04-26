@@ -276,7 +276,7 @@ TreeBuilder.prototype = {
 		var unclosedResult = this.resolveUnclosedTags(unclosedTags, ev);
 		var uclen = unclosedResult.length;
 		if (uclen) {
-			err = new TreeError(
+			var err = new TreeError(
 				( tagOpen
 				? (tagOpen.selfClose ? 'Self closing tag ' :
 					tagOpen.close ? 'Close tag ' : 'Open tag ')+

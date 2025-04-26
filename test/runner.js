@@ -329,5 +329,9 @@ module.exports.scDebug = function() {
 	return parseTree(__dirname+'/examples/selfclose-debug.html');
 };
 
+module.exports.broken = function() {
+	return parseTree(__dirname+'/examples/broken.html');
+};
+
 module.exports.testList = testList;
 module.exports.printerTransform = printerTransform;
