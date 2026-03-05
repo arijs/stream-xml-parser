@@ -59,6 +59,8 @@ export default ({ attrHandler } = {}) => {
 		isText: (el) => !el.sel && 'string' === typeof el.text,
 		isFragment: (el) => el._name === refFragment,
 		isComment: (el) => el._name === nameComment,
+		isDeclaration: (el) => el._name === '#declaration',
+		isInstruction: (el) => el._name === '#instruction',
 		isChildren: (ch) => ch instanceof Array,
 		initRoot: () => initName(refFragment),
 		initName,

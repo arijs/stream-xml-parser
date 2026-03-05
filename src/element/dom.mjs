@@ -30,6 +30,8 @@ export default (apiDom) => {
 		isText: (el) => el.nodeType === apiDom.TEXT_NODE,
 		isFragment,
 		isComment,
+		isDeclaration: (el) => el.nodeType === apiDom.NOTATION_NODE,
+		isInstruction: (el) => el.nodeType === apiDom.PROCESSING_INSTRUCTION_NODE,
 		isChildren,
 		initRoot: () => apiDom.createDocumentFragment(),
 		initName: (name) => apiDom.createElement(name),
