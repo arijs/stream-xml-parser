@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" xml:space="preserve" viewBox="0 0 560 560" width="100%" height="920" class="main-svg">
+  <path id="path-map" fill="none" stroke="#7d7878" stroke-width="0.5px" stroke-linecap="round" stroke-linejoin="round" transform="translate(0, 60)" />
+  <g id="map" transform="translate(0, 60) translate(846, 65) scale(11.42, -11.60)"></g>
+  <!-- <g id="map"></g> -->
+</svg>

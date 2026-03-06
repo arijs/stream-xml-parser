@@ -333,5 +333,17 @@ module.exports.broken = function() {
 	return parseTree(__dirname+'/examples/broken.html');
 };
 
+module.exports.mapSvgStream = function() {
+	return parseFile(__dirname+'/examples/map.svg');
+};
+
+module.exports.mapSvg = function() {
+	return parseTree(__dirname+'/examples/map.svg');
+};
+
+module.exports.mapSvgPrint = function() {
+	return printTree(__dirname+'/examples/map.svg');
+};
+
 module.exports.testList = testList;
 module.exports.printerTransform = printerTransform;

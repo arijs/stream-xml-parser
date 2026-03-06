@@ -1,6 +1,22 @@
 import {arrayFrom, arrayConcat} from '../collection.mjs';
 
 export default (apiDom) => {
+	// @remote-dom/polyfill does not define these constants
+	// so we define them here manually
+	// other dom implementations for the server could have the same constraint
+	const
+		ELEMENT_NODE = 1,
+		ATTRIBUTE_NODE = 2,
+		TEXT_NODE = 3,
+		CDATA_SECTION_NODE = 4,
+		PROCESSING_INSTRUCTION_NODE = 7,
+		COMMENT_NODE = 8,
+		DOCUMENT_NODE = 9,
+		DOCUMENT_TYPE_NODE = 10,
+		DOCUMENT_FRAGMENT_NODE = 11,
+		ENTITY_REFERENCE_NODE = 5,
+		ENTITY_NODE = 6,
+		NOTATION_NODE = 12;
 	const child = (el, child) => void el.appendChild(child);
 	const childCount = (el) => el.childNodes.length;
 	const childIndexGet = (el, index) => el.childNodes[index];
@@ -22,16 +38,16 @@ export default (apiDom) => {
 		}
 	}
 	const textNode = (text) => apiDom.createTextNode(text);
-	const isFragment = (el) => el.nodeType === apiDom.DOCUMENT_FRAGMENT_NODE;
-	const isComment = (el) => el.nodeType === apiDom.COMMENT_NODE;
+	const isFragment = (el) => el.nodeType === DOCUMENT_FRAGMENT_NODE;
+	const isComment = (el) => el.nodeType === COMMENT_NODE;
 	const isChildren = (ch) => ch && ch.constructor === apiDom.childNodes.constructor;
 	// const splice = Array.prototype.splice;
 	return {
-		isText: (el) => el.nodeType === apiDom.TEXT_NODE,
+		isText: (el) => el.nodeType === TEXT_NODE,
 		isFragment,
 		isComment,
-		isDeclaration: (el) => el.nodeType === apiDom.NOTATION_NODE,
-		isInstruction: (el) => el.nodeType === apiDom.PROCESSING_INSTRUCTION_NODE,
+		isDeclaration: (el) => el.nodeType === NOTATION_NODE,
+		isInstruction: (el) => el.nodeType === PROCESSING_INSTRUCTION_NODE,
 		isChildren,
 		initRoot: () => apiDom.createDocumentFragment(),
 		initName: (name) => apiDom.createElement(name),
@@ -50,7 +66,7 @@ export default (apiDom) => {
 			};
 			var count = list && list.length || 0;
 			for (var i = 0; i < count; i++) {
-				var a = list[i];
+				var a = list[i] || list.item(i);
 				var ret = handler.call(ctx, a.name, a.value, a, i);
 				if (ret & ctx._remove) el.removeAttribute(a.name);
 				if (ret & ctx._break) break;
