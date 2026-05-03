@@ -201,7 +201,7 @@ describe('Printer', () => {
 			});
 			const printer = new Printer({
 				elAdapter: el,
-				encodeAttrValue: (v) => v.replace('&', '&amp;'),
+				encodeAttrValue: (v) => v.replace(/&/g, '&amp;'),
 			});
 			const out = printer.print(tree, 0);
 			assert.ok(out.includes('&amp;'));
