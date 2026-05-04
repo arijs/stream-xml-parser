@@ -15,7 +15,7 @@
 		"build": "rollup -c",
 		"build:quick": "rollup -c rollup.config-quick.js",
 		"watch": "rollup -c -w",
-		"test": "node --test test/suite/xmlparser.test.js test/suite/element.test.js test/suite/getparser.test.js test/suite/printer.test.js test/suite/treewalk.test.js test/suite/testlist.test.js test/suite/treematcher.test.js test/suite/treerender.test.js test/suite/treebuilder.test.js",
+		"test": "node --test test/suite/xmlparser.test.js test/suite/element.test.js test/suite/getparser.test.js test/suite/printer.test.js test/suite/treewalk.test.js test/suite/testlist.test.js test/suite/treematcher.test.js test/suite/treerender.test.js test/suite/treebuilder.test.js test/suite/printertransform.test.js",
 		"test:legacy": "node test/test.js"
 	},
 	"files": [
