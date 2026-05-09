@@ -20,8 +20,14 @@ export function getMatcherFrom(item, elAdapter, opt) {
 		if (item[2] instanceof Array) {
 			tm.path(item[2], opt && (opt.path || opt));
 		}
-		if (OBJECT === typeof item[3]) {
-			tm.opt = item[3];
+		if (item[3] instanceof Array) {
+			tm.siblingFromArray(item[3], 'next', opt && (opt.sibling || opt));
+		}
+		if (item[4] instanceof Array) {
+			tm.siblingFromArray(item[4], 'prev', opt && (opt.sibling || opt));
+		}
+		if (OBJECT === typeof item[5]) {
+			tm.opt = item[5];
 		}
 	} else if (OBJECT === typeof item) {
 		if (null != item.name) {
@@ -32,6 +38,12 @@ export function getMatcherFrom(item, elAdapter, opt) {
 		}
 		if (item.path instanceof Array) {
 			tm.path(item.path, item.pathOpt || opt && (opt.path || opt));
+		}
+		if (item.sibling instanceof Array) {
+			tm.siblingFromArray(item.sibling, 'next', item.siblingOpt || opt && (opt.sibling || opt));
+		}
+		if (item.prevSibling instanceof Array) {
+			tm.siblingFromArray(item.prevSibling, 'prev', item.prevSiblingOpt || opt && (opt.sibling || opt));
 		}
 		if (OBJECT === typeof item.opt) {
 			tm.opt = item.opt;
@@ -192,6 +204,13 @@ var defaultOpts = {
 		normalizeAttrName: strPrepare.spaceLower,
 		normalizeAttrValue: strPrepare.spaceLower,
 	},
+	sibling: {
+		repeatMin: 1,
+		repeatMax: Infinity,
+		repeatGreedy: false,
+		testName: true,
+		testAttrs: true,
+	},
 	sub: {
 		repeatMin: 1,
 		repeatMax: 1,
@@ -219,12 +238,16 @@ TreeMatcher.prototype = {
 	rulesName: null,
 	rulesAttrs: null,
 	rulesPath: null,
+	rulesNextSibling: null,
+	rulesPrevSibling: null,
 	rulesSub: null,
 	opt: null,
 	clearRules: function() {
 		this.rulesName = [];
 		this.rulesAttrs = [];
 		this.rulesPath = [];
+		this.rulesNextSibling = [];
+		this.rulesPrevSibling = [];
 		this.rulesSub = [];
 		this.opt = null;
 	},
@@ -568,17 +591,141 @@ TreeMatcher.prototype = {
 			treeMethod.orList
 		);
 	},
-	testAll: function(testNode, testPath) {
-		var name, attr, path, success = false;
+	sibling: function(testSiblingSrc, opt) {
+		var testSibling = getMatcherFrom(testSiblingSrc, this.elAdapter, opt);
+		opt = this.optExtend(
+			{},
+			defaultOpts.sibling,
+			{ source: testSiblingSrc },
+			testSibling.opt,
+			opt
+		);
+		opt.testName = true;
+		opt.testAttrs = true;
+		this._siblingToRules(testSibling, opt, 'next');
+	},
+	prevSibling: function(testSiblingSrc, opt) {
+		var testSibling = getMatcherFrom(testSiblingSrc, this.elAdapter, opt);
+		opt = this.optExtend(
+			{},
+			defaultOpts.sibling,
+			{ source: testSiblingSrc },
+			testSibling.opt,
+			opt
+		);
+		opt.testName = true;
+		opt.testAttrs = true;
+		this._siblingToRules(testSibling, opt, 'prev');
+	},
+	_siblingToRules: function(testSibling, opt, direction) {
+		var self = this;
+		var m = this.initRule(opt, function({node: siblingNode, index: siblingIndex}) {
+			var success = true;
+			var name;
+			var attrs;
+			if (success && opt.testName) {
+				name = testSibling.testNodeName(siblingNode);
+				success = name.success;
+			}
+			if (success && opt.testAttrs) {
+				attrs = testSibling.testNodeAttrs(siblingNode);
+				success = attrs.success;
+			}
+			return {
+				name,
+				attrs,
+				success,
+			};
+		}, this.getItemSuccessSub);
+		if ('prev' === direction) {
+			this.rulesPrevSibling.push(m);
+		} else {
+			this.rulesNextSibling.push(m);
+		}
+	},
+	siblingFromArray: function(list, direction, preOpt) {
+		var c = list.length;
+		for (var i = 0; i < c; i++) {
+			if ('prev' === direction) {
+				this.prevSibling(list[i], preOpt);
+			} else {
+				this.sibling(list[i], preOpt);
+			}
+		}
+	},
+	testSiblingRule: function(rule, sibling) {
+		return rule.test(sibling);
+	},
+	testNodeSiblings: function(parentNode, childIndex, direction, method) {
+		if (null == parentNode || null == childIndex) {
+			return { success: false };
+		}
+		var childCount = this.elAdapter.childCount(parentNode);
+		var siblingIndices = [];
+		
+		if ('prev' === direction) {
+			// Previous siblings: [childIndex-1, childIndex-2, ..., 0]
+			for (var i = childIndex - 1; i >= 0; i--) {
+				siblingIndices.push(i);
+			}
+		} else {
+			// Next siblings: [childIndex+1, childIndex+2, ..., childCount-1]
+			for (var i = childIndex + 1; i < childCount; i++) {
+				siblingIndices.push(i);
+			}
+		}
+		
+		// Convert indices to sibling nodes with their indices
+		var siblings = [];
+		for (var i = 0; i < siblingIndices.length; i++) {
+			var idx = siblingIndices[i];
+			var siblingNode = this.elAdapter.childIndexGet(parentNode, idx);
+			siblings.push({
+				node: siblingNode,
+				index: idx
+			});
+		}
+		
+		var ruleList = 'prev' === direction ? this.rulesPrevSibling : this.rulesNextSibling;
+		return this.testRuleItemList(
+			ruleList,
+			siblings,
+			this.testSiblingRule,
+			method || treeMethod.orCount
+		);
+	},
+	testAll: function(testNode, testPath, childIndex) {
+		var name, attr, path, nextSibling, prevSibling, success = false;
 		name = this.testNodeName(testNode);
 		if (name.success) {
 			attr = this.testNodeAttrs(testNode);
 			if (attr.success) {
 				path = this.testPath(testPath);
-				success = path.success;
+				if (path.success) {
+					// Get parent node from testPath (last element if exists)
+					var parentNode = testPath.length > 0 ? testPath[testPath.length - 1] : null;
+					
+					// Test next siblings if rules exist
+					if (this.rulesNextSibling.length > 0) {
+						nextSibling = this.testNodeSiblings(parentNode, childIndex, 'next');
+						if (!nextSibling.success) {
+							return { success: false, name, attr, path, nextSibling, prevSibling };
+						}
+					}
+					
+					// Test prev siblings if rules exist
+					if (this.rulesPrevSibling.length > 0) {
+						prevSibling = this.testNodeSiblings(parentNode, childIndex, 'prev');
+						if (!prevSibling.success) {
+							return { success: false, name, attr, path, nextSibling, prevSibling };
+						}
+					}
+					
+					success = true;
+				}
 			}
 		}
-		return { success, name, attr, path };
+		return { success, name, attr, path, nextSibling, prevSibling };
 	},
 	sub: function(testSubSrc, opt) {
 		// opt = {...defaultOpts.name, source: testName, ...opt};

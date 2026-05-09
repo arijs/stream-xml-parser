@@ -6,9 +6,10 @@ export var treeWalkIsSkip = ret => ret & _skip;
 export var treeWalkIsAbort = ret => ret & _abort;
 export var treeWalkIsRemove = ret => ret & _remove;
 
-function treeWalk(node, elAdapter, walkFns, path, pathCtx = []) {
+function treeWalk(node, elAdapter, walkFns, path = [], pathCtx = [], nodeCtx = null) {
 	var ret = 0;
 	var ctx = {
+		nodeCtx,
 		pathCtx,
 		skip() { ret |= _skip; },
 		abort() { ret |= _abort; },
@@ -30,19 +31,26 @@ function treeWalk(node, elAdapter, walkFns, path, pathCtx = []) {
 	}
 	if (!(path instanceof Array)) path = [];
 	if (onNode) onNode.call(ctx, node, path, elAdapter);
-	if (ret) return ret;
+	if (
+		treeWalkIsSkip(ret) ||
+		treeWalkIsAbort(ret) ||
+		treeWalkIsRemove(ret)
+	) return ret;
 	path = [...path, node];
+	pathCtx = [...pathCtx, nodeCtx];
 	var rc = elAdapter.childCount(node);
 	for (var i = 0; i < rc; i++) {
+		const nodeCtx = {
+			index: i,
+			count: rc,
+		}
 		ret = treeWalk(
 			elAdapter.childIndexGet(node, i),
 			elAdapter,
 			walkFns,
 			path,
-			[...pathCtx, {
-				index: i,
-				count: rc,
-			}]
+			pathCtx,
+			nodeCtx,
 		);
 		if (treeWalkIsRemove(ret)) {
 			elAdapter.childSplice(node, i, 1)

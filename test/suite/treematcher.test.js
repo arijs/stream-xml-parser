@@ -581,4 +581,220 @@ describe('TreeMatcher', () => {
 			assert.equal(result.success, true);
 		});
 	});
+
+	describe('sibling matching (next siblings)', () => {
+		it('matches a next sibling by name', () => {
+			const { tree, elAdapter } = parse('<html><body><span></span><div></div></body></html>');
+			const { node: bodyNode } = getNodeAndPath(tree[0], 'body', elAdapter);
+			const spanNode = elAdapter.childIndexGet(bodyNode, 0);
+			const tm = new TreeMatcher(elAdapter);
+			tm.name('span');
+			tm.sibling('div');
+			const result = tm.testAll(spanNode, [tree[0], bodyNode], 0);
+			assert.equal(result.success, true);
+		});
+
+		it('fails when next sibling name does not match', () => {
+			const { tree, elAdapter } = parse('<html><body><span></span><div></div></body></html>');
+			const { node: bodyNode } = getNodeAndPath(tree[0], 'body', elAdapter);
+			const spanNode = elAdapter.childIndexGet(bodyNode, 0);
+			const tm = new TreeMatcher(elAdapter);
+			tm.name('span');
+			tm.sibling('p');
+			const result = tm.testAll(spanNode, [tree[0], bodyNode], 0);
+			assert.equal(result.success, false);
+		});
+
+		it('matches with sibling regex pattern', () => {
+			const { tree, elAdapter } = parse('<html><body><section></section><div class="box"></div></body></html>');
+			const { node: bodyNode } = getNodeAndPath(tree[0], 'body', elAdapter);
+			const sectionNode = elAdapter.childIndexGet(bodyNode, 0);
+			const tm = new TreeMatcher(elAdapter);
+			tm.name('section');
+			tm.sibling(['div', [['class', /box/]]]);
+			const result = tm.testAll(sectionNode, [tree[0], bodyNode], 0);
+			assert.equal(result.success, true);
+		});
+
+		it('matches with sibling function predicate', () => {
+			const { tree, elAdapter } = parse('<html><body><ol></ol><ul></ul></body></html>');
+			const { node: bodyNode } = getNodeAndPath(tree[0], 'body', elAdapter);
+			const olNode = elAdapter.childIndexGet(bodyNode, 0);
+			const tm = new TreeMatcher(elAdapter);
+			tm.name('ol');
+			tm.sibling(name => name === 'ul' || name === 'dl');
+			const result = tm.testAll(olNode, [tree[0], bodyNode], 0);
+			assert.equal(result.success, true);
+		});
+
+		it('matches multiple next siblings with repeater <+>', () => {
+			const { tree, elAdapter } = parse('<html><body><div></div><span></span><span></span><p></p></body></html>');
+			const { node: bodyNode } = getNodeAndPath(tree[0], 'body', elAdapter);
+			const divNode = elAdapter.childIndexGet(bodyNode, 0);
+			const tm = new TreeMatcher(elAdapter);
+			tm.name('div');
+			tm.sibling('span <+>');
+			const result = tm.testAll(divNode, [tree[0], bodyNode], 0);
+			assert.equal(result.success, true);
+		});
+
+		it('matches optional next sibling with repeater <?>', () => {
+			const { tree, elAdapter } = parse('<html><body><p></p><div></div></body></html>');
+			const { node: bodyNode } = getNodeAndPath(tree[0], 'body', elAdapter);
+			const pNode = elAdapter.childIndexGet(bodyNode, 0);
+			const tm = new TreeMatcher(elAdapter);
+			tm.name('p');
+			tm.sibling('div <?>');
+			const result = tm.testAll(pNode, [tree[0], bodyNode], 0);
+			assert.equal(result.success, true);
+		});
+
+		it('fails when required next sibling does not exist', () => {
+			const { tree, elAdapter } = parse('<html><body><p></p><div></div></body></html>');
+			const { node: bodyNode } = getNodeAndPath(tree[0], 'body', elAdapter);
+			const pNode = elAdapter.childIndexGet(bodyNode, 0);
+			const tm = new TreeMatcher(elAdapter);
+			tm.name('p');
+			tm.sibling('span <+>');
+			const result = tm.testAll(pNode, [tree[0], bodyNode], 0);
+			assert.equal(result.success, false);
+		});
+
+		it('auto-fails when node is root (no parent)', () => {
+			const { tree, elAdapter } = parse('<html></html>');
+			const tm = new TreeMatcher(elAdapter);
+			tm.name('html');
+			tm.sibling('div');
+			const result = tm.testAll(tree[0], []);
+			assert.equal(result.success, false);
+		});
+	});
+
+	describe('sibling matching (previous siblings)', () => {
+		it('matches a previous sibling by name', () => {
+			const { tree, elAdapter } = parse('<html><body><div></div><span></span></body></html>');
+			const { node: bodyNode } = getNodeAndPath(tree[0], 'body', elAdapter);
+			const spanNode = elAdapter.childIndexGet(bodyNode, 1);
+			const tm = new TreeMatcher(elAdapter);
+			tm.name('span');
+			tm.prevSibling('div');
+			const result = tm.testAll(spanNode, [tree[0], bodyNode], 1);
+			assert.equal(result.success, true);
+		});
+
+		it('fails when previous sibling name does not match', () => {
+			const { tree, elAdapter } = parse('<html><body><div></div><span></span></body></html>');
+			const { node: bodyNode } = getNodeAndPath(tree[0], 'body', elAdapter);
+			const spanNode = elAdapter.childIndexGet(bodyNode, 1);
+			const tm = new TreeMatcher(elAdapter);
+			tm.name('span');
+			tm.prevSibling('p');
+			const result = tm.testAll(spanNode, [tree[0], bodyNode], 1);
+			assert.equal(result.success, false);
+		});
+
+		it('matches multiple previous siblings with repeater <+>', () => {
+			const { tree, elAdapter } = parse('<html><body><span></span><span></span><div></div><p></p></body></html>');
+			const { node: bodyNode } = getNodeAndPath(tree[0], 'body', elAdapter);
+			const pNode = elAdapter.childIndexGet(bodyNode, 3);
+			const tm = new TreeMatcher(elAdapter);
+			tm.name('p');
+			tm.prevSibling('span <+>');
+			const result = tm.testAll(pNode, [tree[0], bodyNode], 3);
+			assert.equal(result.success, true);
+		});
+
+		it('matches previous siblings in reverse order', () => {
+			const { tree, elAdapter } = parse('<html><body><a></a><b></b><c></c><d></d></body></html>');
+			const { node: bodyNode } = getNodeAndPath(tree[0], 'body', elAdapter);
+			const dNode = elAdapter.childIndexGet(bodyNode, 3);
+			const tm = new TreeMatcher(elAdapter);
+			tm.name('d');
+			tm.prevSibling('c');
+			tm.prevSibling('b');
+			tm.prevSibling('a');
+			const result = tm.testAll(dNode, [tree[0], bodyNode], 3);
+			assert.equal(result.success, true);
+		});
+
+		it('auto-fails when node is root (no parent)', () => {
+			const { tree, elAdapter } = parse('<html></html>');
+			const tm = new TreeMatcher(elAdapter);
+			tm.name('html');
+			tm.prevSibling('div');
+			const result = tm.testAll(tree[0], []);
+			assert.equal(result.success, false);
+		});
+	});
+
+	describe('combined matching with siblings', () => {
+		it('matches name, path, and next sibling all together', () => {
+			const { tree, elAdapter } = parse('<html><body><h1></h1><div></div></body></html>');
+			const { node: bodyNode } = getNodeAndPath(tree[0], 'body', elAdapter);
+			const h1Node = elAdapter.childIndexGet(bodyNode, 0);
+			const tm = new TreeMatcher(elAdapter);
+			tm.name('h1');
+			tm.path(['html', 'body']);
+			tm.sibling('div');
+			const result = tm.testAll(h1Node, [tree[0], bodyNode], 0);
+			assert.equal(result.success, true);
+		});
+
+		it('matches div with id and next span sibling', () => {
+			const { tree, elAdapter } = parse('<html><body><div id="main"></div><span></span></body></html>');
+			const { node: bodyNode } = getNodeAndPath(tree[0], 'body', elAdapter);
+			const divNode = elAdapter.childIndexGet(bodyNode, 0);
+			const tm = new TreeMatcher(elAdapter);
+			tm.name('div');
+			tm.attr(['id', 'main']);
+			tm.sibling('span');
+			const result = tm.testAll(divNode, [tree[0], bodyNode], 0);
+			assert.equal(result.success, true);
+		});
+
+		it('fails when sibling rule fails even if all other rules pass', () => {
+			const { tree, elAdapter } = parse('<html><body><a></a><div id="main"></div></body></html>');
+			const { node: bodyNode } = getNodeAndPath(tree[0], 'body', elAdapter);
+			const aNode = elAdapter.childIndexGet(bodyNode, 0);
+			const tm = new TreeMatcher(elAdapter);
+			tm.name('a');
+			tm.sibling('span'); // will fail because next is <div>, not <span>
+			const result = tm.testAll(aNode, [tree[0], bodyNode], 0);
+			assert.equal(result.success, false);
+		});
+	});
+
+	describe('factory methods with siblings', () => {
+		it('creates from array [name, attrs, path, siblings]', () => {
+			const { tree, elAdapter } = parse('<html><body><h1></h1><div></div></body></html>');
+			const { node: bodyNode } = getNodeAndPath(tree[0], 'body', elAdapter);
+			const h1Node = elAdapter.childIndexGet(bodyNode, 0);
+			const tm = TreeMatcher.from(['h1', [], ['html', 'body'], ['div']], elAdapter);
+			const result = tm.testAll(h1Node, [tree[0], bodyNode], 0);
+			assert.equal(result.success, true);
+		});
+
+		it('creates from array [name, attrs, path, siblings, prevSiblings]', () => {
+			const { tree, elAdapter } = parse('<html><body><span></span><div></div><p></p></body></html>');
+			const { node: bodyNode } = getNodeAndPath(tree[0], 'body', elAdapter);
+			const divNode = elAdapter.childIndexGet(bodyNode, 1);
+			const tm = TreeMatcher.from(['div', [], ['html', 'body'], ['p'], ['span']], elAdapter);
+			const result = tm.testAll(divNode, [tree[0], bodyNode], 1);
+			assert.equal(result.success, true);
+		});
+
+		it('creates from object {name, attrs, path, sibling, prevSibling}', () => {
+			const { tree, elAdapter } = parse('<html><body><h1></h1><div></div></body></html>');
+			const { node: bodyNode } = getNodeAndPath(tree[0], 'body', elAdapter);
+			const h1Node = elAdapter.childIndexGet(bodyNode, 0);
+			const tm = TreeMatcher.from({
+				name: 'h1',
+				path: ['html', 'body'],
+				sibling: ['div'],
+			}, elAdapter);
+			const result = tm.testAll(h1Node, [tree[0], bodyNode], 0);
+			assert.equal(result.success, true);
+		});
+	});
 });
+

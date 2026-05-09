@@ -216,6 +216,32 @@ There's three types of _Rules_ you can add:
 
   For that you can use _Repeaters_, just like you have with regular expressions. See the details below.
 
+- **Sibling Matching:**
+  Searchs nodes by their adjacent siblings (next or previous). This is similar to CSS selectors where `+` matches the next sibling and `~` matches any subsequent sibling.
+
+  You can filter sibling nodes by _Name_, _Attributes_, and repeaters to match multiple consecutive siblings:
+
+  - *Next Siblings:*
+    - `treeMatcher.sibling("span")` - match nodes that have a `<span>` as their immediate next sibling.
+    - `treeMatcher.sibling("div <+>")` - match nodes followed by one or more `<div>` siblings.
+    - `treeMatcher.sibling(/^(p|section)$/)` - match nodes with a next sibling that is either `<p>` or `<section>`.
+    - `treeMatcher.sibling(["div", ["id"]])` - match nodes with a next sibling `<div>` that has an `id` attribute.
+    - `treeMatcher.sibling({name: "span", attrs: [{name: "class", value: /\bhighlight\b/}]})` - match nodes with a `<span class="...highlight...">` next sibling.
+
+  - *Previous Siblings:*
+    - `treeMatcher.prevSibling("h1")` - match nodes that are immediately preceded by an `<h1>` sibling.
+    - `treeMatcher.prevSibling("span <+>")` - match nodes preceded by one or more `<span>` siblings.
+    - `treeMatcher.prevSibling(name => name === 'img')` - match nodes with an `<img>` as previous sibling using a function predicate.
+
+  - *Multiple Sibling Rules:*
+    You can add multiple sibling rules to the same matcher:
+    ```js
+    treeMatcher.name('p');
+    treeMatcher.prevSibling('h1');      // must be preceded by <h1>
+    treeMatcher.sibling('span <?>')     // may be followed by optional <span>
+    ```
+    This will match `<p>` elements that come immediately after `<h1>` and may have an optional `<span>` after them.
+
 ## Repeaters
 
 In regular expressions, you match a caracter like this: `/a/`.
@@ -268,6 +294,14 @@ They have almost the same syntax from regular expressions. Examples:
   - `{name: "* <2,6>", attrs: [{name:"class", value: /\bname-of-class\b/}]}` - Accepts from two to six nodes with any name, but they must have the class `name-of-class`.
   - `"* <*>"` - Again, accept anything, including nothing at all.
 
+- **Siblings:**
+  Both next and previous sibling rules support repeaters the same way as attributes and path:
+  - `treeMatcher.sibling("span <+>")` - match nodes followed by one or more `<span>` siblings.
+  - `treeMatcher.sibling("div <?>")` - match nodes with an optional next `<div>` sibling.
+  - `treeMatcher.prevSibling("li <2,4>")` - match nodes preceded by 2 to 4 `<li>` siblings.
+  - `treeMatcher.sibling("* <*>")` - match nodes with any siblings (or none).
+  - `treeMatcher.sibling("img <0>")` - match nodes that have zero `<img>` next siblings (negation).
+
 ### Expanded repeaters (object)
 
 The object syntax for the repeat options are as follows:
@@ -280,13 +314,13 @@ opt = {
 }
 ```
 
-The default values are actually different wether they're for _Attribute_ or _Path_ rules:
+The default values are actually different wether they're for _Attribute_, _Path_, or _Sibling_ rules:
 
-| Default        | Attribute | Path  |
-| -------------- | --------- | ----- |
-| `repeatMin`    | 1         | 1     |
-| `repeatMax`    | Infinity  | 1     |
-| `repeatGreedy` | false     | false |
+| Default        | Attribute | Path  | Sibling |
+| -------------- | --------- | ----- | ------- |
+| `repeatMin`    | 1         | 1     | 1       |
+| `repeatMax`    | Infinity  | 1     | Infinity|
+| `repeatGreedy` | false     | false | false   |
 
 - **Attributes:**
   - `treeMatcher.attr(attrRule: String | Array | Object, opt: Object)` - you can send the repeater options in the second argument to the `attr()` function.
@@ -300,6 +334,64 @@ The default values are actually different wether they're for _Attribute_ or _Pat
   - `{nameOpt: {repeatMin: 0, repeatMax: Infinity}}` - Anything goes in here, including nothing at all.
   - `{name: "*", attrs: [{name:"class", value: /\bname-of-class\b/}], nameOpt: {repeatMin: 2, repeatMax: 6}}` - Accepts from two to six nodes with any name, but they must have the class `name-of-class`.
   - `{nameOpt: {repeatMin: 0, repeatMax: Infinity}}` - Again, accept anything, including nothing at all.
+
+- **Siblings:**
+  You can send the repeater options in the second argument to `sibling()` or `prevSibling()`:
+  - `treeMatcher.sibling("span", {repeatMin: 1, repeatMax: Infinity})` - match nodes followed by one or more `<span>` siblings.
+  - `treeMatcher.sibling("div", {repeatMin: 0, repeatMax: 1})` - match nodes with an optional next `<div>` sibling.
+  - `treeMatcher.prevSibling("h1", {repeatMin: 1, repeatMax: 1})` - match nodes immediately preceded by exactly one `<h1>` sibling.
+  - `treeMatcher.sibling({name: "img", attrs: [["alt"]]}, {repeatMin: 2, repeatMax: 5})` - match nodes with 2 to 5 `<img alt="...">` siblings following them.
+
+## Practical Examples
+
+### Example: Find headings followed by paragraphs
+
+Match all `<h2>` headings that are immediately followed by a `<p>` paragraph:
+
+```js
+const tm = new TreeMatcher(elAdapter);
+tm.name('h2');
+tm.sibling('p');  // next sibling must be <p>
+```
+
+In PrinterTransform, you could use this to wrap such pairs:
+
+```js
+am.addRule({
+  matcher: {
+    name: 'h2',
+    sibling: ['p']
+  },
+  callback: function(opt) {
+    // Found an <h2> followed by <p>
+    return opt.callback(null, {
+      after: {text: '<!-- heading with paragraph pair -->', noFormat: true}
+    });
+  }
+});
+```
+
+### Example: Find list items with images
+
+Match `<li>` items that contain an image in their immediate next siblings or that are preceded by other `<li>` elements:
+
+```js
+const tm = new TreeMatcher(elAdapter);
+tm.name('li');
+tm.prevSibling('li <*>');    // preceded by zero or more <li>s
+tm.sibling('img <?>')        // optionally followed by <img>
+```
+
+### Example: CSS selector equivalents
+
+The sibling methods provide equivalents to CSS pseudo-selectors:
+
+| CSS | TreeMatcher |
+| --- | --- |
+| `h1 + p` | `tm.name('p'); tm.prevSibling('h1')` |
+| `h1 ~ p` | `tm.name('p'); tm.prevSibling('h1 <+>')` (one or more h1 before) |
+| `li:has(+ span)` | `tm.name('li'); tm.sibling('span')` |
+| `div:has(~ img <2,4>)` | `tm.name('div'); tm.sibling('img <2,4>')` |
 
 ## Sources and other examples
 
