@@ -15,7 +15,7 @@
 		"build": "rollup -c",
 		"build:quick": "rollup -c rollup.config-quick.js",
 		"watch": "rollup -c -w",
-		"test": "node --test test/suite/*.test.js",
+		"test": "node scripts/test.mjs",
 		"test:legacy": "node test/test.js"
 	},
 	"files": [
