@@ -1,9 +1,17 @@
-import { createParser } from 'css-selector-parser';
+import * as cspLib from 'css-selector-parser';
 import { getMatcherFrom, getMatcherFromArray } from './treematcher.mjs';
 
 var STRING = 'string';
-var parseCssSelector = createParser();
 var ANY_GAP = '* <*>';
+var parseCssSelector;
+
+function getCssSelectorParser(selector) {
+	if (undefined === parseCssSelector) {
+		// Only try to access the 'createParser' method when we actually need it, to allow for better tree shaking in environments where the CSS selector parsing functionality is not used.
+		parseCssSelector = cspLib.createParser();
+	}
+	return parseCssSelector(selector);
+}
 
 export default getMatcherFromCssSelector;
 
@@ -13,7 +21,7 @@ export function getMatcherFromCssSelector(selector, elAdapter, opt) {
 	}
 	var ast;
 	try {
-		ast = parseCssSelector(selector);
+		ast = getCssSelectorParser(selector);
 	} catch (err) {
 		throw new Error('Invalid CSS selector: ' + err.message);
 	}
