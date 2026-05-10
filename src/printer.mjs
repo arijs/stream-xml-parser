@@ -249,12 +249,14 @@ Printer.prototype = {
 	},
 	printAsync: function(tree, level, path, cbPrint) {
 		var out = '';
+		var i = 0;
+		var tc = tree.length;
 		path = path || [];
 		cbNext = cbNext.bind(this);
 		return runNext.call(this);
 		function runNext() {
-			if (tree.length) {
-				var node = tree.shift();
+			if (i < tc) {
+				var node = tree[i++];
 				if (this.elAdapter.isText(node)) {
 					this.printTextAsync(this.elAdapter.textValueGet(node), level, path, cbNext);
 				} else if (this.elAdapter.isComment(node)) {

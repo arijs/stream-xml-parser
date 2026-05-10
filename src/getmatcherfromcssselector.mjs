@@ -199,13 +199,12 @@ function attributeToMatcherAttr(item) {
 	}
 	if ('^=' === item.operator) {
 		return [item.name, function(attrValue) {
-			return 0 === String(attrValue).indexOf(value);
+			return String(attrValue).startsWith(value);
 		}];
 	}
 	if ('$=' === item.operator) {
 		return [item.name, function(attrValue) {
-			attrValue = String(attrValue);
-			return attrValue.substr(attrValue.length - value.length) === value;
+			return String(attrValue).endsWith(value);
 		}];
 	}
 	if ('*=' === item.operator) {

@@ -96,6 +96,49 @@ export function apply(rep, level, path, elAdapter, printer) {
 	}
 }
 
+function hasContainerRep(rep) {
+	return null == rep.full && (
+		null != rep.append ||
+		null != rep.prepend ||
+		null != rep.children
+	);
+}
+
+function withContainer(rep, level, path, elAdapter, printer, addErrors, cbTag) {
+	var ap = apply(rep, level, path, elAdapter, printer);
+	addErrors(ap.errors);
+	if (cbTag instanceof Function) {
+		cbTag(null, ap.text);
+	}
+	return ap.text;
+}
+
+function prepareContainerRep(rep, node, level, printer) {
+	var st = printer.isStrictTag(node);
+	rep.open =
+		printer.printTagSpaceBeforeOpen(level, st, node) +
+		printer.printTagOpen(node) +
+		( null == rep.children || !rep.noFormat
+			? printer.printTagSpaceAfterOpen(level, st, node)
+			: '' );
+	rep.close =
+		( null == rep.children || !rep.noFormat
+			? printer.printTagSpaceBeforeClose(level, st, node)
+			: '' ) +
+		printer.printTagClose(node) +
+		printer.printTagSpaceAfterClose(level, st, node);
+}
+
+function getChildIndex(node, path, elAdapter) {
+	var parent = path && path[path.length - 1];
+	if (!parent) return undefined;
+	var children = elAdapter.childrenGet(parent) || [];
+	for (var i = 0; i < children.length; i++) {
+		if (children[i] === node) return i;
+	}
+	return undefined;
+}
+
 export function async({tree, elAdapter, transform, callback, level, printer}) {
 	var repErrors = [];
 	return printTreeAsync({tree, elAdapter, customPrintTag, level, printer, callback: cbPrintTree});
@@ -112,37 +155,28 @@ export function async({tree, elAdapter, transform, callback, level, printer}) {
 		callback(repErrors, page);
 	}
 	function customPrintTag(node, level, path, printTagAsync, printer, cbTag) {
-		return transform({node, path, level, elAdapter, printer, callback: cbTransform});
+		return transform({
+			node,
+			path,
+			level,
+			elAdapter,
+			printer,
+			childIndex: getChildIndex(node, path, elAdapter),
+			callback: cbTransform,
+		});
 		function cbTransform(err, rep) {
 			if (rep) {
 				addErrors(err);
-				if (
-					null == rep.full && (
-					null != rep.append ||
-					null != rep.prepend ||
-					null != rep.children )
-				) {
-					var st = printer.isStrictTag(node);
-					rep.open =
-						printer.printTagSpaceBeforeOpen(level, st, node) +
-						printer.printTagOpen(node) +
-						( null == rep.children || !rep.noFormat
-							? printer.printTagSpaceAfterOpen(level, st, node)
-							: '' );
-					rep.close = 
-						( null == rep.children || !rep.noFormat
-							? printer.printTagSpaceBeforeClose(level, st, node)
-							: '' ) +
-						printer.printTagClose(node) +
-						printer.printTagSpaceAfterClose(level, st, node);
+				if (hasContainerRep(rep)) {
+					prepareContainerRep(rep, node, level, printer);
 					if (null == rep.children) {
 						return printer.printTagChildrenAsync(node, level+1, path.concat([node]), function(errPrint, nodeChildren) {
 							addErrors(errPrint);
 							rep.childrenSrc = nodeChildren;
-							return withContainer(rep);
+							return withContainer(rep, level, path, elAdapter, printer, addErrors, cbTag);
 						});
 					} else {
-						return withContainer(rep);
+						return withContainer(rep, level, path, elAdapter, printer, addErrors, cbTag);
 					}
 				} else if (
 					null == rep.full
@@ -150,25 +184,62 @@ export function async({tree, elAdapter, transform, callback, level, printer}) {
 					return printTagAsync.call(printer, node, level, path, function (errPrint, nodeFull) {
 						addErrors(errPrint);
 						rep.fullSrc = nodeFull;
-						return withContainer(rep);
+						return withContainer(rep, level, path, elAdapter, printer, addErrors, cbTag);
 					});
 				}
-				return withContainer(rep);
+				return withContainer(rep, level, path, elAdapter, printer, addErrors, cbTag);
 			} else if (err) {
 				return cbTag(err, '');
 			} else {
 				return printTagAsync.call(printer, node, level, path, cbTag);
 			}
 		}
-		function withContainer(rep) {
-			var {errors, text} = apply(rep, level, path, elAdapter, printer);
-			addErrors(errors);
-			cbTag(null, text);
-		}
 	}
 }
 
-export function asyncMatcher(elAdapter) {
+export function sync({tree, elAdapter, transform, level, printer}) {
+	var repErrors = [];
+	var page = printTreeSync({tree, elAdapter, customPrintTag, level, printer});
+	if (!repErrors.length) repErrors = null;
+	return {errors: repErrors, page};
+	function addErrors(err) {
+		if (err instanceof Array) {
+			repErrors = repErrors.concat(err);
+		} else if (err) {
+			repErrors.push(err);
+		}
+	}
+	function customPrintTag(node, level, path, printTag, printer) {
+		var rep;
+		try {
+			rep = transform({
+				node,
+				path,
+				level,
+				elAdapter,
+				printer,
+				childIndex: getChildIndex(node, path, elAdapter),
+			});
+		} catch (err) {
+			addErrors(err);
+			return '';
+		}
+		if (rep) {
+			if (hasContainerRep(rep)) {
+				prepareContainerRep(rep, node, level, printer);
+				if (null == rep.children) {
+					rep.childrenSrc = printer.printTagChildren(node, level+1, path.concat([node]));
+				}
+			} else if (null == rep.full) {
+				rep.fullSrc = printTag.call(printer, node, level, path);
+			}
+			return withContainer(rep, level, path, elAdapter, printer, addErrors);
+		}
+		return printTag.call(printer, node, level, path);
+	}
+}
+
+function createMatcher(elAdapter, transform) {
 	var rules = [];
 	var api = {
 		addRule: function(opt) {
@@ -183,23 +254,45 @@ export function asyncMatcher(elAdapter) {
 		isSuccess: function(result) {
 			return result.success;
 		},
-		transform: function(opt) {
+		getRule: function(opt) {
 			var node = opt.node;
 			var path = opt.path;
+			var childIndex = opt.childIndex;
 			var rc = rules.length;
 			api.onTest(opt);
 			for (var i = 0; i < rc; i++) {
 				var rule = rules[i];
 				var isSuccess = rule.isSuccess || api.isSuccess;
-				var result = rule.matcher.testAll(node, path);
+				var result = rule.matcher.testAll(node, path, childIndex);
 				var success = isSuccess(result);
 				api.onTestRule(result, success, rule, opt);
 				if (success) {
-					return rule.callback(opt);
+					return rule;
 				}
 			}
-			opt.callback();
+		},
+		transform: function(opt) {
+			return transform(api, opt);
 		}
 	};
 	return api;
+}
+
+export function asyncMatcher(elAdapter) {
+	return createMatcher(elAdapter, function(api, opt) {
+		var rule = api.getRule(opt);
+		if (rule) {
+			return rule.callback(opt);
+		}
+		opt.callback();
+	});
+}
+
+export function syncMatcher(elAdapter) {
+	return createMatcher(elAdapter, function(api, opt) {
+		var rule = api.getRule(opt);
+		if (rule) {
+			return rule.callback(opt);
+		}
+	});
 }

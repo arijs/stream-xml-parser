@@ -2,12 +2,26 @@
 
 const { describe, it } = require('node:test');
 const assert = require('node:assert/strict');
-const { getParser, printerTransform, elementDefault, Printer } = require('../..');
+const { getParser, printerTransform, elementDefault, Printer, treeWalk } = require('../..');
 
 function parse(html) {
 	const p = getParser();
 	p.end(html);
 	return p.getResult();
+}
+
+function getNodeAndPath(root, targetName, elAdapter) {
+	let targetNode = null;
+	let targetPath = null;
+	treeWalk(root, elAdapter, {
+		onNode: function(node, path) {
+			if (elAdapter.nameGet(node) === targetName && !targetNode) {
+				targetNode = node;
+				targetPath = path.slice();
+			}
+		},
+	}, []);
+	return { node: targetNode, path: targetPath };
 }
 
 /**
@@ -22,6 +36,12 @@ function transformAsync(tree, elAdapter, transform) {
 				else resolve(html);
 			},
 		});
+	});
+}
+
+function transformSync(tree, elAdapter, transform) {
+	return printerTransform.sync({
+		tree, elAdapter, transform,
 	});
 }
 
@@ -417,6 +437,341 @@ describe('printerTransform', () => {
 			assert.ok(result.includes('Replaced Title'), 'title should be replaced');
 			assert.ok(!result.includes('Old'), 'old title should be gone');
 			assert.ok(result.includes('/js/extra.js'), 'extra script should be inserted');
+		});
+	});
+
+	describe('asyncMatcher - sibling selectors', () => {
+		it('matches prevSibling adjacent rule and transforms node', async () => {
+			const { tree, elAdapter } = parse('<html><head></head><body><p>Body</p></body></html>');
+			const { node, path } = getNodeAndPath(tree[0], 'p', elAdapter);
+			const am = printerTransform.asyncMatcher(elAdapter);
+			am.addRule({
+				matcher: {
+					name: 'p',
+					path: ['html', { name: 'body', prevSibling: ['head <1>'] }],
+				},
+				callback: function(opt) {
+					return opt.callback(null, {
+						full: { text: '<p>Replaced By Prev</p>', noFormat: true },
+						noFormat: true,
+					});
+				},
+			});
+			const rep = await new Promise((resolve, reject) => {
+				am.transform({
+					node,
+					path,
+					level: 0,
+					elAdapter,
+					callback: function(err, out) {
+						if (err) reject(err);
+						else resolve(out);
+					},
+				});
+			});
+			assert.ok(rep && rep.full && rep.full.text.includes('Replaced By Prev'), 'prev sibling rule should apply');
+		});
+
+		it('matches next sibling wildcard-gap rule and transforms node', async () => {
+			const { tree, elAdapter } = parse('<html><body><p>Body</p></body><section></section><aside></aside></html>');
+			const { node, path } = getNodeAndPath(tree[0], 'p', elAdapter);
+			const am = printerTransform.asyncMatcher(elAdapter);
+			am.addRule({
+				matcher: {
+					name: 'p',
+					path: ['html', { name: 'body', sibling: ['* <*>', 'aside <1>'] }],
+				},
+				callback: function(opt) {
+					return opt.callback(null, {
+						full: { text: '<p>Replaced By Next</p>', noFormat: true },
+						noFormat: true,
+					});
+				},
+			});
+			const rep = await new Promise((resolve, reject) => {
+				am.transform({
+					node,
+					path,
+					level: 0,
+					elAdapter,
+					callback: function(err, out) {
+						if (err) reject(err);
+						else resolve(out);
+					},
+				});
+			});
+			assert.ok(rep && rep.full && rep.full.text.includes('Replaced By Next'), 'next sibling wildcard rule should apply');
+		});
+
+		it('does not apply when sibling rule does not match', async () => {
+			const { tree, elAdapter } = parse('<html><body><p>Body</p></body><section></section></html>');
+			const { node, path } = getNodeAndPath(tree[0], 'p', elAdapter);
+			const am = printerTransform.asyncMatcher(elAdapter);
+			am.addRule({
+				matcher: {
+					name: 'p',
+					path: ['html', { name: 'body', sibling: ['aside <1>'] }],
+				},
+				callback: function(opt) {
+					return opt.callback(null, {
+						children: { text: 'SHOULD_NOT_APPLY', noFormat: true },
+						noFormat: true,
+					});
+				},
+			});
+			const rep = await new Promise((resolve, reject) => {
+				am.transform({
+					node,
+					path,
+					level: 0,
+					elAdapter,
+					callback: function(err, out) {
+						if (err) reject(err);
+						else resolve(out);
+					},
+				});
+			});
+			assert.equal(rep, undefined, 'rule should not be applied');
+		});
+	});
+
+	describe('asyncMatcher - sibling selectors (full transform integration)', () => {
+		it('matches prevSibling on matched element', async () => {
+			const { tree, elAdapter } = parse('<html><body><h1>Title</h1><p>Body</p></body></html>');
+			const am = printerTransform.asyncMatcher(elAdapter);
+			am.addRule({
+				matcher: {
+					name: 'p',
+					path: ['html', 'body'],
+					prevSibling: ['h1 <1>'],
+				},
+				callback: function(opt) {
+					return opt.callback(null, {
+						children: { text: 'Replaced Matched Prev', noFormat: true },
+						noFormat: true,
+					});
+				},
+			});
+			const result = await transformAsync(tree, elAdapter, am.transform);
+			assert.ok(result.includes('Replaced Matched Prev'), 'matched-element prevSibling rule should apply');
+			assert.ok(!result.includes('Body'), 'old content should be replaced');
+		});
+
+		it('matches sibling on matched element', async () => {
+			const { tree, elAdapter } = parse('<html><body><p>Body</p><span>After</span></body></html>');
+			const am = printerTransform.asyncMatcher(elAdapter);
+			am.addRule({
+				matcher: {
+					name: 'p',
+					path: ['html', 'body'],
+					sibling: ['span <1>'],
+				},
+				callback: function(opt) {
+					return opt.callback(null, {
+						children: { text: 'Replaced Matched Next', noFormat: true },
+						noFormat: true,
+					});
+				},
+			});
+			const result = await transformAsync(tree, elAdapter, am.transform);
+			assert.ok(result.includes('Replaced Matched Next'), 'matched-element sibling rule should apply');
+			assert.ok(!result.includes('Body'), 'old content should be replaced');
+		});
+
+		it('matches prevSibling as path selector rule', async () => {
+			const { tree, elAdapter } = parse('<html><head></head><body><p>Body</p></body></html>');
+			const am = printerTransform.asyncMatcher(elAdapter);
+			am.addRule({
+				matcher: {
+					name: 'p',
+					path: ['html', { name: 'body', prevSibling: ['head <1>'] }],
+				},
+				callback: function(opt) {
+					return opt.callback(null, {
+						children: { text: 'Replaced By Prev', noFormat: true },
+						noFormat: true,
+					});
+				},
+			});
+			const result = await transformAsync(tree, elAdapter, am.transform);
+			assert.ok(result.includes('Replaced By Prev'), 'prev sibling rule should apply');
+			assert.ok(!result.includes('Body'), 'old content should be replaced');
+		});
+
+		it('matches sibling as path selector rule', async () => {
+			const { tree, elAdapter } = parse('<html><body><p>Body</p></body><section></section><aside></aside></html>');
+			const am = printerTransform.asyncMatcher(elAdapter);
+			am.addRule({
+				matcher: {
+					name: 'p',
+					path: ['html', { name: 'body', sibling: ['* <*>', 'aside <1>'] }],
+				},
+				callback: function(opt) {
+					return opt.callback(null, {
+						children: { text: 'Replaced By Next', noFormat: true },
+						noFormat: true,
+					});
+				},
+			});
+			const result = await transformAsync(tree, elAdapter, am.transform);
+			assert.ok(result.includes('Replaced By Next'), 'next sibling wildcard rule should apply');
+			assert.ok(!result.includes('Body'), 'old content should be replaced');
+		});
+	});
+
+	describe('sync', () => {
+		it('returns page output with no errors for pass-through transforms', () => {
+			const { tree, elAdapter } = parse('<html><body><p>Hello</p></body></html>');
+			const result = transformSync(tree, elAdapter, function() {});
+			assert.equal(result.errors, null);
+			assert.ok(result.page.includes('<p>'));
+			assert.ok(result.page.includes('Hello'));
+		});
+
+		it('collects thrown transform errors', () => {
+			const { tree, elAdapter } = parse('<html><body><p>Hello</p></body></html>');
+			const result = transformSync(tree, elAdapter, function(opt) {
+				if (opt.node && opt.elAdapter.nameGet(opt.node) === 'p') {
+					throw new Error('sync transform failure');
+				}
+			});
+			assert.ok(result.errors && result.errors.length === 1);
+			assert.equal(result.errors[0].message, 'sync transform failure');
+		});
+	});
+
+	describe('syncMatcher', () => {
+		it('replaces children with a text string', () => {
+			const { tree, elAdapter } = parse('<html><head><title>Old Title</title></head><body></body></html>');
+			const sm = printerTransform.syncMatcher(elAdapter);
+			sm.addRule({
+				matcher: { name: 'title', path: ['html', 'head'] },
+				callback: function() {
+					return {
+						noFormat: true,
+						children: { text: 'New Title', noFormat: true },
+					};
+				},
+			});
+			const result = transformSync(tree, elAdapter, sm.transform);
+			assert.equal(result.errors, null);
+			assert.ok(result.page.includes('New Title'));
+			assert.ok(!result.page.includes('Old Title'));
+		});
+
+		it('uses the first matching rule when multiple rules match', () => {
+			const { tree, elAdapter } = parse('<html><body><div id="target"></div></body></html>');
+			const sm = printerTransform.syncMatcher(elAdapter);
+			sm.addRule({
+				matcher: { name: 'div', path: ['html', 'body'] },
+				callback: function() {
+					return { full: { text: '<p>First Rule</p>', noFormat: true } };
+				},
+			});
+			sm.addRule({
+				matcher: { name: 'div', attrs: [['id', 'target']], path: ['html', 'body'] },
+				callback: function() {
+					return { full: { text: '<p>Second Rule</p>', noFormat: true } };
+				},
+			});
+			const result = transformSync(tree, elAdapter, sm.transform);
+			assert.equal(result.errors, null);
+			assert.ok(result.page.includes('First Rule'));
+			assert.ok(!result.page.includes('Second Rule'));
+		});
+
+		it('supports per-rule isSuccess override', () => {
+			const { tree, elAdapter } = parse('<html><body><div></div></body></html>');
+			const sm = printerTransform.syncMatcher(elAdapter);
+			let callbackCalled = false;
+			sm.addRule({
+				matcher: { name: 'div', path: ['html', 'body'] },
+				isSuccess: function() { return false; },
+				callback: function() {
+					callbackCalled = true;
+					return null;
+				},
+			});
+			const result = transformSync(tree, elAdapter, sm.transform);
+			assert.equal(result.errors, null);
+			assert.equal(callbackCalled, false);
+		});
+
+		it('calls onTest for visited nodes', () => {
+			const { tree, elAdapter } = parse('<html><body><div></div></body></html>');
+			const sm = printerTransform.syncMatcher(elAdapter);
+			let testCount = 0;
+			sm.onTest = function() { testCount++; };
+			sm.addRule({
+				matcher: { name: 'div', path: ['html', 'body'] },
+				callback: function() { return null; },
+			});
+			const result = transformSync(tree, elAdapter, sm.transform);
+			assert.equal(result.errors, null);
+			assert.ok(testCount > 0);
+		});
+
+		it('matches prevSibling adjacent rule and transforms node', () => {
+			const { tree, elAdapter } = parse('<html><head></head><body><p>Body</p></body></html>');
+			const sm = printerTransform.syncMatcher(elAdapter);
+			sm.addRule({
+				matcher: {
+					name: 'p',
+					path: ['html', { name: 'body', prevSibling: ['head <1>'] }],
+				},
+				callback: function() {
+					return {
+						children: { text: 'Sync Replaced Prev', noFormat: true },
+						noFormat: true,
+					};
+				},
+			});
+			const result = transformSync(tree, elAdapter, sm.transform);
+			assert.equal(result.errors, null);
+			assert.ok(result.page.includes('Sync Replaced Prev'));
+			assert.ok(!result.page.includes('Body'));
+		});
+
+		it('matches next sibling wildcard-gap rule and transforms node', () => {
+			const { tree, elAdapter } = parse('<html><body><p>Body</p></body><section></section><aside></aside></html>');
+			const sm = printerTransform.syncMatcher(elAdapter);
+			sm.addRule({
+				matcher: {
+					name: 'p',
+					path: ['html', { name: 'body', sibling: ['* <*>', 'aside <1>'] }],
+				},
+				callback: function() {
+					return {
+						children: { text: 'Sync Replaced Next', noFormat: true },
+						noFormat: true,
+					};
+				},
+			});
+			const result = transformSync(tree, elAdapter, sm.transform);
+			assert.equal(result.errors, null);
+			assert.ok(result.page.includes('Sync Replaced Next'));
+			assert.ok(!result.page.includes('Body'));
+		});
+
+		it('does not apply when prevSibling rule does not match', () => {
+			const { tree, elAdapter } = parse('<html><section></section><body><p>Body</p></body></html>');
+			const sm = printerTransform.syncMatcher(elAdapter);
+			sm.addRule({
+				matcher: {
+					name: 'p',
+					path: ['html', { name: 'body', prevSibling: ['head <1>'] }],
+				},
+				callback: function() {
+					return {
+						children: { text: 'SHOULD_NOT_APPLY_SYNC', noFormat: true },
+						noFormat: true,
+					};
+				},
+			});
+			const result = transformSync(tree, elAdapter, sm.transform);
+			assert.equal(result.errors, null);
+			assert.ok(result.page.includes('Body'));
+			assert.ok(!result.page.includes('SHOULD_NOT_APPLY_SYNC'));
 		});
 	});
 });
