@@ -627,7 +627,7 @@ describe('TreeMatcher', () => {
 			assert.equal(result.success, true);
 		});
 
-		it('matches multiple next siblings with repeater <+>', () => {
+		it('fails multiple next siblings with repeater <+> when trailing siblings are not explicitly allowed', () => {
 			const { tree, elAdapter } = parse('<html><body><div></div><span></span><span></span><p></p></body></html>');
 			const { node: bodyNode } = getNodeAndPath(tree[0], 'body', elAdapter);
 			const divNode = elAdapter.childIndexGet(bodyNode, 0);
@@ -635,7 +635,42 @@ describe('TreeMatcher', () => {
 			tm.name('div');
 			tm.sibling('span <+>');
 			const result = tm.testAll(divNode, [tree[0], bodyNode], 0);
+			assert.equal(result.success, false);
+		});
+
+		it('matches multiple next siblings with repeater <+> when caller explicitly allows trailing siblings', () => {
+			const { tree, elAdapter } = parse('<html><body><div></div><span></span><span></span><p></p></body></html>');
+			const { node: bodyNode } = getNodeAndPath(tree[0], 'body', elAdapter);
+			const divNode = elAdapter.childIndexGet(bodyNode, 0);
+			const tm = new TreeMatcher(elAdapter);
+			tm.name('div');
+			tm.sibling('span <+>');
+			tm.sibling('* <*>');
+			const result = tm.testAll(divNode, [tree[0], bodyNode], 0);
 			assert.equal(result.success, true);
+		});
+
+		it('supports explicit wildcard gap before a required next sibling', () => {
+			const { tree, elAdapter } = parse('<html><body><b></b><x></x><y></y><a></a></body></html>');
+			const { node: bodyNode } = getNodeAndPath(tree[0], 'body', elAdapter);
+			const bNode = elAdapter.childIndexGet(bodyNode, 0);
+			const tm = new TreeMatcher(elAdapter);
+			tm.name('b');
+			tm.sibling('* <*>');
+			tm.sibling('a <1>');
+			const result = tm.testAll(bNode, [tree[0], bodyNode], 0);
+			assert.equal(result.success, true);
+		});
+
+		it('fails non-adjacent required next sibling when wildcard gap is not explicit', () => {
+			const { tree, elAdapter } = parse('<html><body><b></b><x></x><y></y><a></a></body></html>');
+			const { node: bodyNode } = getNodeAndPath(tree[0], 'body', elAdapter);
+			const bNode = elAdapter.childIndexGet(bodyNode, 0);
+			const tm = new TreeMatcher(elAdapter);
+			tm.name('b');
+			tm.sibling('a <1>');
+			const result = tm.testAll(bNode, [tree[0], bodyNode], 0);
+			assert.equal(result.success, false);
 		});
 
 		it('matches optional next sibling with repeater <?>', () => {
@@ -682,6 +717,40 @@ describe('TreeMatcher', () => {
 			assert.equal(result.success, true);
 		});
 
+		it('supports adjacent sibling semantics with explicit <1>', () => {
+			const { tree, elAdapter } = parse('<html><body><a></a><b></b><c></c></body></html>');
+			const { node: bodyNode } = getNodeAndPath(tree[0], 'body', elAdapter);
+			const bNode = elAdapter.childIndexGet(bodyNode, 1);
+			const tm = new TreeMatcher(elAdapter);
+			tm.name('b');
+			tm.prevSibling('a <1>');
+			const result = tm.testAll(bNode, [tree[0], bodyNode], 1);
+			assert.equal(result.success, true);
+		});
+
+		it('supports chained previous-sibling rules with wildcard repeater then explicit match', () => {
+			const { tree, elAdapter } = parse('<html><body><a></a><x></x><y></y><b></b></body></html>');
+			const { node: bodyNode } = getNodeAndPath(tree[0], 'body', elAdapter);
+			const bNode = elAdapter.childIndexGet(bodyNode, 3);
+			const tm = new TreeMatcher(elAdapter);
+			tm.name('b');
+			tm.prevSibling('* <*>');
+			tm.prevSibling('a <1>');
+			const result = tm.testAll(bNode, [tree[0], bodyNode], 3);
+			assert.equal(result.success, true);
+		});
+
+		it('fails non-adjacent required previous sibling when wildcard gap is not explicit', () => {
+			const { tree, elAdapter } = parse('<html><body><a></a><x></x><y></y><b></b></body></html>');
+			const { node: bodyNode } = getNodeAndPath(tree[0], 'body', elAdapter);
+			const bNode = elAdapter.childIndexGet(bodyNode, 3);
+			const tm = new TreeMatcher(elAdapter);
+			tm.name('b');
+			tm.prevSibling('a <1>');
+			const result = tm.testAll(bNode, [tree[0], bodyNode], 3);
+			assert.equal(result.success, false);
+		});
+
 		it('fails when previous sibling name does not match', () => {
 			const { tree, elAdapter } = parse('<html><body><div></div><span></span></body></html>');
 			const { node: bodyNode } = getNodeAndPath(tree[0], 'body', elAdapter);
@@ -693,13 +762,25 @@ describe('TreeMatcher', () => {
 			assert.equal(result.success, false);
 		});
 
-		it('matches multiple previous siblings with repeater <+>', () => {
-			const { tree, elAdapter } = parse('<html><body><span></span><span></span><div></div><p></p></body></html>');
+		it('fails multiple previous siblings with repeater <+> when trailing siblings are not explicitly allowed', () => {
+			const { tree, elAdapter } = parse('<html><body><div></div><span></span><span></span><p></p></body></html>');
 			const { node: bodyNode } = getNodeAndPath(tree[0], 'body', elAdapter);
 			const pNode = elAdapter.childIndexGet(bodyNode, 3);
 			const tm = new TreeMatcher(elAdapter);
 			tm.name('p');
 			tm.prevSibling('span <+>');
+			const result = tm.testAll(pNode, [tree[0], bodyNode], 3);
+			assert.equal(result.success, false);
+		});
+
+		it('matches multiple previous siblings with repeater <+> when caller explicitly allows trailing siblings', () => {
+			const { tree, elAdapter } = parse('<html><body><div></div><span></span><span></span><p></p></body></html>');
+			const { node: bodyNode } = getNodeAndPath(tree[0], 'body', elAdapter);
+			const pNode = elAdapter.childIndexGet(bodyNode, 3);
+			const tm = new TreeMatcher(elAdapter);
+			tm.name('p');
+			tm.prevSibling('span <+>');
+			tm.prevSibling('* <*>');
 			const result = tm.testAll(pNode, [tree[0], bodyNode], 3);
 			assert.equal(result.success, true);
 		});

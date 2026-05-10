@@ -556,6 +556,18 @@ TreeMatcher.prototype = {
 			getSuccess: self.getItemSuccessSub,
 		}
 	},
+	testSiblingAdapter: function(rule) {
+		return {
+			min: rule.repeatMin,
+			max: rule.repeatMax,
+			greedy: rule.repeatGreedy,
+			source: rule.source,
+			test: function(sibling) {
+				return rule.test(sibling);
+			},
+			getSuccess: rule.getSuccess,
+		};
+	},
 	path: function(testPathSrc, opt) {
 		var tpc = testPathSrc.length;
 		var testPath = [];
@@ -618,6 +630,14 @@ TreeMatcher.prototype = {
 		this._siblingToRules(testSibling, opt, 'prev');
 	},
 	_siblingToRules: function(testSibling, opt, direction) {
+		var siblingNameRule = testSibling.rulesName && testSibling.rulesName[0];
+		if (siblingNameRule) {
+			opt = this.optExtend({}, opt, {
+				repeatMin: siblingNameRule.repeatMin,
+				repeatMax: siblingNameRule.repeatMax,
+				repeatGreedy: siblingNameRule.repeatGreedy,
+			});
+		}
 		var self = this;
 		var m = this.initRule(opt, function({node: siblingNode, index: siblingIndex}) {
 			var success = true;
@@ -687,12 +707,19 @@ TreeMatcher.prototype = {
 		}
 		
 		var ruleList = 'prev' === direction ? this.rulesPrevSibling : this.rulesNextSibling;
-		return this.testRuleItemList(
-			ruleList,
-			siblings,
-			this.testSiblingRule,
-			method || treeMethod.orCount
-		);
+		var self = this;
+		return this.testRuleOrder(ruleList, siblings, function(rule) {
+			return self.testSiblingAdapter(rule);
+		}, function({success, active, failed, attemptsList: attempts}) {
+			return {
+				success,
+				active,
+				failedCount: failed.length,
+				attemptsCount: attempts.length,
+				failed,
+				attempts,
+			};
+		});
 	},
 	testAll: function(testNode, testPath, childIndex) {
 		var name, attr, path, nextSibling, prevSibling, success = false;

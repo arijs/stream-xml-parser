@@ -217,7 +217,9 @@ There's three types of _Rules_ you can add:
   For that you can use _Repeaters_, just like you have with regular expressions. See the details below.
 
 - **Sibling Matching:**
-  Searchs nodes by their adjacent siblings (next or previous). This is similar to CSS selectors where `+` matches the next sibling and `~` matches any subsequent sibling.
+  Searchs nodes by their adjacent siblings (next or previous).
+
+  This is a low-level matcher, not a direct CSS combinator engine. Sibling rules are evaluated in order from the immediate adjacent sibling outward, and the sibling list must be fully consumed by your rules. If you want to allow "anything else" before or after a specific sibling condition, you must add that explicitly (for example with `* <*>`).
 
   You can filter sibling nodes by _Name_, _Attributes_, and repeaters to match multiple consecutive siblings:
 
@@ -241,6 +243,20 @@ There's three types of _Rules_ you can add:
     treeMatcher.sibling('span <?>')     // may be followed by optional <span>
     ```
     This will match `<p>` elements that come immediately after `<h1>` and may have an optional `<span>` after them.
+
+  - *Explicitly allowing extra siblings:*
+    If you need to allow unmatched siblings before the earliest previous sibling rule or after the latest next sibling rule, add explicit wildcard rules:
+    ```js
+    // Current node is <b>, siblings are: <a><x><y><b><m>
+    treeMatcher.name('b');
+
+    // Allow any number of immediate previous siblings, then require one <a>
+    treeMatcher.prevSibling('* <*>');
+    treeMatcher.prevSibling('a <1>');
+
+    // Allow any number of remaining next siblings
+    treeMatcher.sibling('* <*>');
+    ```
 
 ## Repeaters
 
@@ -299,8 +315,11 @@ They have almost the same syntax from regular expressions. Examples:
   - `treeMatcher.sibling("span <+>")` - match nodes followed by one or more `<span>` siblings.
   - `treeMatcher.sibling("div <?>")` - match nodes with an optional next `<div>` sibling.
   - `treeMatcher.prevSibling("li <2,4>")` - match nodes preceded by 2 to 4 `<li>` siblings.
-  - `treeMatcher.sibling("* <*>")` - match nodes with any siblings (or none).
+  - `treeMatcher.sibling("* <*>")` - explicit wildcard rule to consume any number of next siblings (including none).
+  - `treeMatcher.prevSibling("* <*>")` - explicit wildcard rule to consume any number of previous siblings (including none).
   - `treeMatcher.sibling("img <0>")` - match nodes that have zero `<img>` next siblings (negation).
+
+  Because sibling matching uses ordered rule matching with full consumption, `* <*>` is commonly used as an explicit "anything else" segment when needed.
 
 ### Expanded repeaters (object)
 
@@ -458,16 +477,40 @@ tm.prevSibling('li <*>');    // preceded by zero or more <li>s
 tm.sibling('img <?>')        // optionally followed by <img>
 ```
 
-### Example: CSS selector equivalents
+### Example: Explicit sibling consumption
 
-The sibling methods provide equivalents to CSS pseudo-selectors:
+Because sibling rules are low-level and ordered, these two examples behave differently:
 
-| CSS | TreeMatcher |
-| --- | --- |
-| `h1 + p` | `tm.name('p'); tm.prevSibling('h1')` |
-| `h1 ~ p` | `tm.name('p'); tm.prevSibling('h1 <+>')` (one or more h1 before) |
-| `li:has(+ span)` | `tm.name('li'); tm.sibling('span')` |
-| `div:has(~ img <2,4>)` | `tm.name('div'); tm.sibling('img <2,4>')` |
+```js
+// Example A: fails if there are unmatched next siblings left
+// Siblings after <div>: <span><span><p>
+const tmA = new TreeMatcher(elAdapter);
+tmA.name('div');
+tmA.sibling('span <+>');
+// This does NOT match because <p> is still unconsumed.
+
+// Example B: caller explicitly allows trailing siblings
+const tmB = new TreeMatcher(elAdapter);
+tmB.name('div');
+tmB.sibling('span <+>');
+tmB.sibling('* <*>');
+// This matches: span+ is consumed first, wildcard consumes remaining siblings.
+```
+
+### Example: Adjacent and non-adjacent previous siblings
+
+```js
+// Adjacent requirement (like direct previous sibling)
+const tm1 = new TreeMatcher(elAdapter);
+tm1.name('b');
+tm1.prevSibling('a <1>');
+
+// Non-adjacent requirement with explicit gap allowance
+const tm2 = new TreeMatcher(elAdapter);
+tm2.name('b');
+tm2.prevSibling('* <*>');
+tm2.prevSibling('a <1>');
+```
 
 ## Sources and other examples
 
