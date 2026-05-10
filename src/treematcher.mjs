@@ -737,11 +737,14 @@ TreeMatcher.prototype = {
 			testSub.opt,
 			opt
 		);
-		var m = this.initRule(opt, function({node: testNode, path: testPath}) {
+		var self = this;
+		var m = this.initRule(opt, function({node: testNode, path: testPath, childIndex, parentNode}) {
 			var success = true;
 			var name;
 			var attrs;
 			var path;
+			var nextSibling;
+			var prevSibling;
 			if (success && m.testName) {
 				name = testSub.testNodeName(testNode);
 				success = name.success;
@@ -754,10 +757,23 @@ TreeMatcher.prototype = {
 				path = testSub.testPath(testPath);
 				success = path.success;
 			}
+			// Test siblings if rules exist and we have the necessary context
+			if (success && parentNode != null && childIndex != null) {
+				if (testSub.rulesNextSibling.length > 0) {
+					nextSibling = testSub.testNodeSiblings(parentNode, childIndex, 'next');
+					success = nextSibling.success;
+				}
+				if (success && testSub.rulesPrevSibling.length > 0) {
+					prevSibling = testSub.testNodeSiblings(parentNode, childIndex, 'prev');
+					success = prevSibling.success;
+				}
+			}
 			return {
 				name,
 				attrs,
 				path,
+				nextSibling,
+				prevSibling,
 				success,
 			};
 		}, this.getItemSuccessSub);
@@ -772,12 +788,31 @@ TreeMatcher.prototype = {
 	testSubRule: function(rule, sub) {
 		return rule.test(sub);
 	},
-	testNodeSub: function(node, path, method) {
+	testNodeSub: function(node, path, childIndex, method) {
+		// Handle parameter overloading:
+		// testNodeSub(node, path)
+		// testNodeSub(node, path, method)
+		// testNodeSub(node, path, childIndex, method)
+		var actualChildIndex = null;
+		var actualMethod = method;
+		
+		// If childIndex is provided and is not a method object/function
+		if (childIndex != null && typeof childIndex !== 'object') {
+			actualChildIndex = childIndex;
+			actualMethod = method;
+		} else if (childIndex != null && typeof childIndex === 'object') {
+			// Third parameter is actually the method, not childIndex
+			actualMethod = childIndex;
+			actualChildIndex = null;
+		}
+		
+		var parentNode = path && path.length > 0 ? path[path.length - 1] : null;
+		
 		return this.testRuleItem(
 			this.rulesSub,
-			{node, path},
+			{node, path, childIndex: actualChildIndex, parentNode},
 			this.testSubRule,
-			method || treeMethod.orList
+			actualMethod || treeMethod.orList
 		);
 	},
 };

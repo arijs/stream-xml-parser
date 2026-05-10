@@ -796,5 +796,112 @@ describe('TreeMatcher', () => {
 			assert.equal(result.success, true);
 		});
 	});
-});
 
+	describe('sub-rules with siblings', () => {
+		it('matches sub-rule with next sibling', () => {
+			const { tree, elAdapter } = parse('<html><body><h1></h1><div></div></body></html>');
+			const { node: bodyNode } = getNodeAndPath(tree[0], 'body', elAdapter);
+			const h1Node = elAdapter.childIndexGet(bodyNode, 0);
+			const tm = TreeMatcher.fromArray([
+				['h1', [], ['html', 'body'], ['div']]
+			], elAdapter);
+			const result = tm.testNodeSub(h1Node, [tree[0], bodyNode], 0);
+			assert.equal(result.success, true);
+		});
+
+		it('fails sub-rule when next sibling does not match', () => {
+			const { tree, elAdapter } = parse('<html><body><h1></h1><span></span></body></html>');
+			const { node: bodyNode } = getNodeAndPath(tree[0], 'body', elAdapter);
+			const h1Node = elAdapter.childIndexGet(bodyNode, 0);
+			const tm = TreeMatcher.fromArray([
+				['h1', [], ['html', 'body'], ['div']]
+			], elAdapter);
+			const result = tm.testNodeSub(h1Node, [tree[0], bodyNode], 0);
+			assert.equal(result.success, false);
+		});
+
+		it('matches sub-rule with prev sibling', () => {
+			const { tree, elAdapter } = parse('<html><body><span></span><div></div></body></html>');
+			const { node: bodyNode } = getNodeAndPath(tree[0], 'body', elAdapter);
+			const divNode = elAdapter.childIndexGet(bodyNode, 1);
+			const tm = TreeMatcher.fromArray([
+				['div', [], ['html', 'body'], [], ['span']]
+			], elAdapter);
+			const result = tm.testNodeSub(divNode, [tree[0], bodyNode], 1);
+			assert.equal(result.success, true);
+		});
+
+		it('fails sub-rule when prev sibling does not match', () => {
+			const { tree, elAdapter } = parse('<html><body><p></p><div></div></body></html>');
+			const { node: bodyNode } = getNodeAndPath(tree[0], 'body', elAdapter);
+			const divNode = elAdapter.childIndexGet(bodyNode, 1);
+			const tm = TreeMatcher.fromArray([
+				['div', [], ['html', 'body'], [], ['span']]
+			], elAdapter);
+			const result = tm.testNodeSub(divNode, [tree[0], bodyNode], 1);
+			assert.equal(result.success, false);
+		});
+
+		it('matches sub-rule with both next and prev siblings', () => {
+			const { tree, elAdapter } = parse('<html><body><span></span><div id="main"></div><p></p></body></html>');
+			const { node: bodyNode } = getNodeAndPath(tree[0], 'body', elAdapter);
+			const divNode = elAdapter.childIndexGet(bodyNode, 1);
+			const tm = TreeMatcher.fromArray([
+				['div', [['id', 'main']], ['html', 'body'], ['p'], ['span']]
+			], elAdapter);
+			const result = tm.testNodeSub(divNode, [tree[0], bodyNode], 1);
+			assert.equal(result.success, true);
+		});
+
+		it('creates sub-rule from object with sibling and prevSibling', () => {
+			const { tree, elAdapter } = parse('<html><body><a></a><div></div><span></span></body></html>');
+			const { node: bodyNode } = getNodeAndPath(tree[0], 'body', elAdapter);
+			const divNode = elAdapter.childIndexGet(bodyNode, 1);
+			const tm = TreeMatcher.fromArray([
+				{
+					name: 'div',
+					path: ['html', 'body'],
+					sibling: ['span'],
+					prevSibling: ['a']
+				}
+			], elAdapter);
+			const result = tm.testNodeSub(divNode, [tree[0], bodyNode], 1);
+			assert.equal(result.success, true);
+		});
+
+		it('ignores siblings when testNodeSub called without childIndex', () => {
+			const { tree, elAdapter } = parse('<html><body><h1></h1><div></div></body></html>');
+			const { node: bodyNode } = getNodeAndPath(tree[0], 'body', elAdapter);
+			const h1Node = elAdapter.childIndexGet(bodyNode, 0);
+			const tm = TreeMatcher.fromArray([
+				['h1', [], ['html', 'body'], ['div']]
+			], elAdapter);
+			// Call without childIndex - should still match based on name/attrs/path
+			const result = tm.testNodeSub(h1Node, [tree[0], bodyNode]);
+			assert.equal(result.success, true);
+		});
+
+		it('fails when name/attrs/path fail even if siblings would match', () => {
+			const { tree, elAdapter } = parse('<html><body><h1></h1><div></div></body></html>');
+			const { node: bodyNode } = getNodeAndPath(tree[0], 'body', elAdapter);
+			const h1Node = elAdapter.childIndexGet(bodyNode, 0);
+			const tm = TreeMatcher.fromArray([
+				['span', [], ['html', 'body'], ['div']]  // h1 doesn't match span
+			], elAdapter);
+			const result = tm.testNodeSub(h1Node, [tree[0], bodyNode], 0);
+			assert.equal(result.success, false);
+		});
+
+		it('maintains backward compatibility: testNodeSub(node, path, method)', () => {
+			const { tree, elAdapter } = parse('<html><body><div></div></body></html>');
+			const { node: bodyNode } = getNodeAndPath(tree[0], 'body', elAdapter);
+			const divNode = elAdapter.childIndexGet(bodyNode, 0);
+			const tm = TreeMatcher.fromArray([
+				['div', [], ['html', 'body']]
+			], elAdapter);
+			// Pass method as third parameter (old style)
+			const result = tm.testNodeSub(divNode, [tree[0], bodyNode], TreeMatcher.method.orList);
+			assert.equal(result.success, true);
+		});
+	});
+});

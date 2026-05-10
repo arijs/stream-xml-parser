@@ -342,6 +342,82 @@ The default values are actually different wether they're for _Attribute_, _Path_
   - `treeMatcher.prevSibling("h1", {repeatMin: 1, repeatMax: 1})` - match nodes immediately preceded by exactly one `<h1>` sibling.
   - `treeMatcher.sibling({name: "img", attrs: [["alt"]]}, {repeatMin: 2, repeatMax: 5})` - match nodes with 2 to 5 `<img alt="...">` siblings following them.
 
+## Sub-Rules with Siblings
+
+You can also combine sub-rules (using `TreeMatcher.fromArray()`) with sibling matching. This is useful when you want to match nodes based on multiple criteria patterns and their sibling relationships.
+
+### Using `testNodeSub()` with Sibling Support
+
+The `testNodeSub()` method can now accept an optional `childIndex` parameter to enable sibling testing:
+
+```javascript
+const tm = TreeMatcher.fromArray([
+  ['div', [['id', 'main']], ['html', 'body'], ['span'], ['p']]
+], elAdapter);
+
+// Test with sibling support
+const bodyNode = getNodeFromTree(tree, 'body');
+const divNode = getNodeFromTree(bodyNode, 'div'); // at index 1
+const testPath = [tree, bodyNode];
+
+// testNodeSub(node, path, childIndex)
+const result = tm.testNodeSub(divNode, testPath, 1);
+// Matches if:
+// - node is <div id="main">
+// - it's under <html><body>
+// - it has a next <span> sibling
+// - it has a previous <p> sibling
+```
+
+### Array Factory Form with Siblings
+
+Use the array form to define sub-rules with sibling specifications:
+
+```javascript
+// Format: [name, attrs, path, nextSiblings, prevSiblings]
+TreeMatcher.fromArray([
+  ['h2', [], ['article'], ['p']],      // h2 followed by p
+  ['div', [['id', 'root']], [], [], []] // div#root with no siblings
+], elAdapter)
+```
+
+### Object Factory Form with Siblings
+
+Use the object syntax for clearer, more readable definitions:
+
+```javascript
+TreeMatcher.fromArray([
+  {
+    name: 'button',
+    attrs: [['type', 'submit']],
+    path: ['form'],
+    sibling: ['input'],        // next sibling must be input
+    prevSibling: ['label']     // previous sibling must be label
+  },
+  {
+    name: 'img',
+    attrs: [['alt']],
+    sibling: ['span <?>']      // optional next span sibling
+  }
+], elAdapter)
+```
+
+### Backward Compatibility
+
+The `testNodeSub()` method remains backward compatible with existing code:
+
+```javascript
+// Old usage still works (siblings not tested)
+tm.testNodeSub(node, path);
+tm.testNodeSub(node, path, method);
+
+// New usage with sibling support
+tm.testNodeSub(node, path, childIndex);
+tm.testNodeSub(node, path, childIndex, method);
+```
+
+If `childIndex` is not provided, sibling rules in the sub-matcher are not tested, allowing you to use sub-rules for name/attributes/path matching only.
+
 ## Practical Examples
 
 ### Example: Find headings followed by paragraphs
