@@ -232,6 +232,40 @@ describe('printerTransform', () => {
 			assert.ok(result.includes('<section>') || result.includes('<section'), 'should include section element');
 			assert.ok(!result.includes('<p>'), 'should not include the original p tag');
 		});
+
+		it('removes matched element when full is an empty replacement object', async () => {
+			const { tree, elAdapter } = parse('<html><body><div>Keep</div><p>Remove Me</p></body></html>');
+			const am = printerTransform.asyncMatcher(elAdapter);
+			am.addRule({
+				matcher: { name: 'p', path: ['html', 'body'] },
+				callback: function(opt) {
+					return opt.callback(null, {
+						full: {},
+					});
+				},
+			});
+			const result = await transformAsync(tree, elAdapter, am.transform);
+			assert.ok(!result.includes('<p>'), 'matched element should be removed');
+			assert.ok(!result.includes('Remove Me'), 'matched element text should be removed');
+			assert.ok(result.includes('Keep'), 'other content should remain');
+		});
+
+		it('removes children when children is an empty replacement object', async () => {
+			const { tree, elAdapter } = parse('<html><body><div><span>Remove Child</span></div></body></html>');
+			const am = printerTransform.asyncMatcher(elAdapter);
+			am.addRule({
+				matcher: { name: 'div', path: ['html', 'body'] },
+				callback: function(opt) {
+					return opt.callback(null, {
+						children: {},
+					});
+				},
+			});
+			const result = await transformAsync(tree, elAdapter, am.transform);
+			assert.ok(result.includes('<div>'), 'wrapper element should remain');
+			assert.ok(!result.includes('<span>'), 'children should be removed');
+			assert.ok(!result.includes('Remove Child'), 'children text should be removed');
+		});
 	});
 
 	describe('asyncMatcher - no match', () => {
@@ -772,6 +806,42 @@ describe('printerTransform', () => {
 			assert.equal(result.errors, null);
 			assert.ok(result.page.includes('Body'));
 			assert.ok(!result.page.includes('SHOULD_NOT_APPLY_SYNC'));
+		});
+
+		it('removes matched element when full is an empty replacement object', () => {
+			const { tree, elAdapter } = parse('<html><body><div>Keep</div><p>Remove Me</p></body></html>');
+			const sm = printerTransform.syncMatcher(elAdapter);
+			sm.addRule({
+				matcher: { name: 'p', path: ['html', 'body'] },
+				callback: function() {
+					return {
+						full: {},
+					};
+				},
+			});
+			const result = transformSync(tree, elAdapter, sm.transform);
+			assert.equal(result.errors, null);
+			assert.ok(!result.page.includes('<p>'), 'matched element should be removed');
+			assert.ok(!result.page.includes('Remove Me'), 'matched element text should be removed');
+			assert.ok(result.page.includes('Keep'), 'other content should remain');
+		});
+
+		it('removes children when children is an empty replacement object', () => {
+			const { tree, elAdapter } = parse('<html><body><div><span>Remove Child</span></div></body></html>');
+			const sm = printerTransform.syncMatcher(elAdapter);
+			sm.addRule({
+				matcher: { name: 'div', path: ['html', 'body'] },
+				callback: function() {
+					return {
+						children: {},
+					};
+				},
+			});
+			const result = transformSync(tree, elAdapter, sm.transform);
+			assert.equal(result.errors, null);
+			assert.ok(result.page.includes('<div>'), 'wrapper element should remain');
+			assert.ok(!result.page.includes('<span>'), 'children should be removed');
+			assert.ok(!result.page.includes('Remove Child'), 'children text should be removed');
 		});
 	});
 });
