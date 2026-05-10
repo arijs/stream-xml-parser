@@ -2,7 +2,7 @@
 
 const { describe, it } = require('node:test');
 const assert = require('node:assert/strict');
-const { getParser, TreeMatcher, treeWalk } = require('../..');
+const { getParser, TreeMatcher, treeWalk, getMatcherFromCssSelector } = require('../..');
 
 function parse(html) {
 	const p = getParser();
@@ -346,6 +346,84 @@ describe('TreeMatcher', () => {
 			const tm = new TreeMatcher(elAdapter);
 			tm.name('span');
 			tm.path(['html', 'body', [/^h[1-6]$/i]]);
+			assert.equal(tm.testAll(node, path).success, true);
+		});
+
+		it('matches path entry object with previous sibling rule', () => {
+			const { tree, elAdapter } = parse('<html><head></head><body><main><div></div></main></body></html>');
+			const { node, path } = getNodeAndPath(tree[0], 'div', elAdapter);
+			const tm = new TreeMatcher(elAdapter);
+			tm.name('div');
+			tm.path([
+				'html',
+				{ name: 'body', prevSibling: ['head <1>'] },
+				'main',
+			]);
+			assert.equal(tm.testAll(node, path).success, true);
+		});
+
+		it('fails path entry previous sibling rule when adjacent sibling does not match', () => {
+			const { tree, elAdapter } = parse('<html><head></head><aside></aside><body><main><div></div></main></body></html>');
+			const { node, path } = getNodeAndPath(tree[0], 'div', elAdapter);
+			const tm = new TreeMatcher(elAdapter);
+			tm.name('div');
+			tm.path([
+				'html',
+				{ name: 'body', prevSibling: ['head <1>'] },
+				'main',
+			]);
+			assert.equal(tm.testAll(node, path).success, false);
+		});
+
+		it('matches path entry object with next sibling rule', () => {
+			const { tree, elAdapter } = parse('<html><body><main><div></div></main></body><aside></aside></html>');
+			const { node, path } = getNodeAndPath(tree[0], 'div', elAdapter);
+			const tm = new TreeMatcher(elAdapter);
+			tm.name('div');
+			tm.path([
+				'html',
+				{ name: 'body', sibling: ['aside <1>'] },
+				'main',
+			]);
+			assert.equal(tm.testAll(node, path).success, true);
+		});
+
+		it('fails path entry next sibling rule when adjacent sibling does not match', () => {
+			const { tree, elAdapter } = parse('<html><body><main><div></div></main></body><section></section><aside></aside></html>');
+			const { node, path } = getNodeAndPath(tree[0], 'div', elAdapter);
+			const tm = new TreeMatcher(elAdapter);
+			tm.name('div');
+			tm.path([
+				'html',
+				{ name: 'body', sibling: ['aside <1>'] },
+				'main',
+			]);
+			assert.equal(tm.testAll(node, path).success, false);
+		});
+
+		it('matches path entry previous sibling with explicit wildcard gap', () => {
+			const { tree, elAdapter } = parse('<html><head></head><section></section><body><main><div></div></main></body></html>');
+			const { node, path } = getNodeAndPath(tree[0], 'div', elAdapter);
+			const tm = new TreeMatcher(elAdapter);
+			tm.name('div');
+			tm.path([
+				'html',
+				{ name: 'body', prevSibling: ['* <*>', 'head <1>'] },
+				'main',
+			]);
+			assert.equal(tm.testAll(node, path).success, true);
+		});
+
+		it('matches path entry next sibling with explicit wildcard gap', () => {
+			const { tree, elAdapter } = parse('<html><body><main><div></div></main></body><section></section><aside></aside></html>');
+			const { node, path } = getNodeAndPath(tree[0], 'div', elAdapter);
+			const tm = new TreeMatcher(elAdapter);
+			tm.name('div');
+			tm.path([
+				'html',
+				{ name: 'body', sibling: ['* <*>', 'aside <1>'] },
+				'main',
+			]);
 			assert.equal(tm.testAll(node, path).success, true);
 		});
 	});
@@ -983,6 +1061,194 @@ describe('TreeMatcher', () => {
 			// Pass method as third parameter (old style)
 			const result = tm.testNodeSub(divNode, [tree[0], bodyNode], TreeMatcher.method.orList);
 			assert.equal(result.success, true);
+		});
+	});
+
+	describe('getMatcherFromCssSelector', () => {
+		it('supports wildcard selector (*)', () => {
+			const { tree, elAdapter } = parse('<html><body><div></div></body></html>');
+			const { node, path } = getNodeAndPath(tree[0], 'div', elAdapter);
+			const tm = getMatcherFromCssSelector('*', elAdapter);
+			assert.equal(tm.testAll(node, path).success, true);
+		});
+
+		it('supports tag, id, class and attribute equality', () => {
+			const { tree, elAdapter } = parse('<html><body><div id="foo" class="container main" rows="2"></div></body></html>');
+			const { node, path } = getNodeAndPath(tree[0], 'div', elAdapter);
+			const tm = getMatcherFromCssSelector('div#foo.container[rows="2"]', elAdapter);
+			assert.equal(tm.testAll(node, path).success, true);
+		});
+
+		it('supports multiple selectors (a, b) as OR', () => {
+			const { tree, elAdapter } = parse('<html><body><span></span></body></html>');
+			const { node, path } = getNodeAndPath(tree[0], 'span', elAdapter);
+			const tm = getMatcherFromCssSelector('div, span', elAdapter);
+			const result = tm.testNodeSub(node, path);
+			assert.equal(result.success, true);
+		});
+
+		it('supports descendant combinator (p span)', () => {
+			const { tree, elAdapter } = parse('<html><body><p><em><span></span></em></p></body></html>');
+			const { node, path } = getNodeAndPath(tree[0], 'span', elAdapter);
+			const tm = getMatcherFromCssSelector('p span', elAdapter);
+			assert.equal(tm.testAll(node, path).success, true);
+		});
+
+		it('supports direct child combinator (p > span)', () => {
+			const { tree, elAdapter } = parse('<html><body><p><span></span></p></body></html>');
+			const { node, path } = getNodeAndPath(tree[0], 'span', elAdapter);
+			const tm = getMatcherFromCssSelector('p > span', elAdapter);
+			assert.equal(tm.testAll(node, path).success, true);
+		});
+
+		it('fails direct child combinator when only descendant exists', () => {
+			const { tree, elAdapter } = parse('<html><body><p><em><span></span></em></p></body></html>');
+			const { node, path } = getNodeAndPath(tree[0], 'span', elAdapter);
+			const tm = getMatcherFromCssSelector('p > span', elAdapter);
+			assert.equal(tm.testAll(node, path).success, false);
+		});
+
+		it('supports adjacent sibling combinator (a + b)', () => {
+			const { tree, elAdapter } = parse('<html><body><x></x><a></a><b></b></body></html>');
+			const { node: bodyNode } = getNodeAndPath(tree[0], 'body', elAdapter);
+			const bNode = elAdapter.childIndexGet(bodyNode, 2);
+			const tm = getMatcherFromCssSelector('a + b', elAdapter);
+			assert.equal(tm.testAll(bNode, [tree[0], bodyNode], 2).success, true);
+		});
+
+		it('supports subsequent sibling combinator (a ~ b)', () => {
+			const { tree, elAdapter } = parse('<html><body><x></x><a></a><y></y><b></b></body></html>');
+			const { node: bodyNode } = getNodeAndPath(tree[0], 'body', elAdapter);
+			const bNode = elAdapter.childIndexGet(bodyNode, 3);
+			const tm = getMatcherFromCssSelector('a ~ b', elAdapter);
+			assert.equal(tm.testAll(bNode, [tree[0], bodyNode], 3).success, true);
+		});
+
+		it('supports adjacent sibling combinator for head + body', () => {
+			const { tree, elAdapter } = parse('<html><head></head><body><main><div></div></main></body></html>');
+			const { node: htmlNode } = getNodeAndPath(tree[0], 'html', elAdapter);
+			const bodyNode = elAdapter.childIndexGet(htmlNode, 1);
+			const tm = getMatcherFromCssSelector('head + body', elAdapter);
+			assert.equal(tm.testAll(bodyNode, [tree[0]], 1).success, true);
+		});
+
+		it('supports ancestor adjacent sibling combinator (head + body main div)', () => {
+			const { tree, elAdapter } = parse('<html><head></head><body><main><div></div></main></body></html>');
+			const { node, path } = getNodeAndPath(tree[0], 'div', elAdapter);
+			const tm = getMatcherFromCssSelector('head + body main div', elAdapter);
+			assert.equal(tm.testAll(node, path).success, true);
+		});
+
+		it('fails adjacent sibling combinator for head + body when there is an intermediate sibling', () => {
+			const { tree, elAdapter } = parse('<html><head></head><section></section><body><main><div></div></main></body></html>');
+			const { node: htmlNode } = getNodeAndPath(tree[0], 'html', elAdapter);
+			const bodyNode = elAdapter.childIndexGet(htmlNode, 2);
+			const tm = getMatcherFromCssSelector('head + body', elAdapter);
+			assert.equal(tm.testAll(bodyNode, [tree[0]], 2).success, false);
+		});
+
+		it('fails ancestor adjacent sibling combinator (head + body main div) when there is an intermediate sibling', () => {
+			const { tree, elAdapter } = parse('<html><head></head><section></section><body><main><div></div></main></body></html>');
+			const { node, path } = getNodeAndPath(tree[0], 'div', elAdapter);
+			const tm = getMatcherFromCssSelector('head + body main div', elAdapter);
+			assert.equal(tm.testAll(node, path).success, false);
+		});
+
+		it('supports subsequent sibling combinator for head ~ body with explicit gap', () => {
+			const { tree, elAdapter } = parse('<html><head></head><section></section><body><main><div></div></main></body></html>');
+			const { node: htmlNode } = getNodeAndPath(tree[0], 'html', elAdapter);
+			const bodyNode = elAdapter.childIndexGet(htmlNode, 2);
+			const tm = getMatcherFromCssSelector('head ~ body', elAdapter);
+			assert.equal(tm.testAll(bodyNode, [tree[0]], 2).success, true);
+		});
+
+		it('supports ancestor subsequent sibling combinator (head ~ body main div) with explicit gap', () => {
+			const { tree, elAdapter } = parse('<html><head></head><section></section><body><main><div></div></main></body></html>');
+			const { node, path } = getNodeAndPath(tree[0], 'div', elAdapter);
+			const tm = getMatcherFromCssSelector('head ~ body main div', elAdapter);
+			assert.equal(tm.testAll(node, path).success, true);
+		});
+
+		it('supports subsequent sibling combinator for body ~ aside with explicit gap', () => {
+			const { tree, elAdapter } = parse('<html><body><main><div></div></main></body><section></section><aside></aside></html>');
+			const { node: htmlNode } = getNodeAndPath(tree[0], 'html', elAdapter);
+			const asideNode = elAdapter.childIndexGet(htmlNode, 2);
+			const tm = getMatcherFromCssSelector('body ~ aside', elAdapter);
+			assert.equal(tm.testAll(asideNode, [tree[0]], 2).success, true);
+		});
+
+		it('fails adjacent sibling combinator for body + aside when there is an intermediate sibling', () => {
+			const { tree, elAdapter } = parse('<html><body><main><div></div></main></body><section></section><aside></aside></html>');
+			const { node: htmlNode } = getNodeAndPath(tree[0], 'html', elAdapter);
+			const asideNode = elAdapter.childIndexGet(htmlNode, 2);
+			const tm = getMatcherFromCssSelector('body + aside', elAdapter);
+			assert.equal(tm.testAll(asideNode, [tree[0]], 2).success, false);
+		});
+
+		it('supports ancestor adjacent sibling combinator (body + aside main div)', () => {
+			const { tree, elAdapter } = parse('<html><body></body><aside><main><div></div></main></aside></html>');
+			const { node, path } = getNodeAndPath(tree[0], 'div', elAdapter);
+			const tm = getMatcherFromCssSelector('body + aside main div', elAdapter);
+			assert.equal(tm.testAll(node, path).success, true);
+		});
+
+		it('fails ancestor adjacent sibling combinator (body + aside main div) when there is an intermediate sibling', () => {
+			const { tree, elAdapter } = parse('<html><body></body><section></section><aside><main><div></div></main></aside></html>');
+			const { node, path } = getNodeAndPath(tree[0], 'div', elAdapter);
+			const tm = getMatcherFromCssSelector('body + aside main div', elAdapter);
+			assert.equal(tm.testAll(node, path).success, false);
+		});
+
+		it('supports ancestor subsequent sibling combinator (body ~ aside main div) with explicit gap', () => {
+			const { tree, elAdapter } = parse('<html><body></body><section></section><aside><main><div></div></main></aside></html>');
+			const { node, path } = getNodeAndPath(tree[0], 'div', elAdapter);
+			const tm = getMatcherFromCssSelector('body ~ aside main div', elAdapter);
+			assert.equal(tm.testAll(node, path).success, true);
+		});
+
+		it('throws on unsupported pseudo classes', () => {
+			const { elAdapter } = parse('<div></div>');
+			assert.throws(() => getMatcherFromCssSelector('a:hover', elAdapter), /Unsupported selector rule: pseudo class/);
+		});
+
+		it('throws on unsupported pseudo elements', () => {
+			const { elAdapter } = parse('<div></div>');
+			assert.throws(() => getMatcherFromCssSelector('a::before', elAdapter), /Unsupported selector rule: pseudo element/);
+		});
+
+		it('supports attribute operator ^=', () => {
+			const { tree, elAdapter } = parse('<html><body><a href="/docs/start"></a></body></html>');
+			const { node, path } = getNodeAndPath(tree[0], 'a', elAdapter);
+			const tm = getMatcherFromCssSelector('a[href^="/"]', elAdapter);
+			assert.equal(tm.testAll(node, path).success, true);
+		});
+
+		it('supports attribute operator $=', () => {
+			const { tree, elAdapter } = parse('<html><body><a href="guide.pdf"></a></body></html>');
+			const { node, path } = getNodeAndPath(tree[0], 'a', elAdapter);
+			const tm = getMatcherFromCssSelector('a[href$=".pdf"]', elAdapter);
+			assert.equal(tm.testAll(node, path).success, true);
+		});
+
+		it('supports attribute operator *=', () => {
+			const { tree, elAdapter } = parse('<html><body><a href="/api/v1/list"></a></body></html>');
+			const { node, path } = getNodeAndPath(tree[0], 'a', elAdapter);
+			const tm = getMatcherFromCssSelector('a[href*="api"]', elAdapter);
+			assert.equal(tm.testAll(node, path).success, true);
+		});
+
+		it('supports attribute operator ~=', () => {
+			const { tree, elAdapter } = parse('<html><body><a class="btn primary"></a></body></html>');
+			const { node, path } = getNodeAndPath(tree[0], 'a', elAdapter);
+			const tm = getMatcherFromCssSelector('a[class~="btn"]', elAdapter);
+			assert.equal(tm.testAll(node, path).success, true);
+		});
+
+		it('supports attribute operator |=', () => {
+			const { tree, elAdapter } = parse('<html><body><a lang="en-US"></a></body></html>');
+			const { node, path } = getNodeAndPath(tree[0], 'a', elAdapter);
+			const tm = getMatcherFromCssSelector('a[lang|="en"]', elAdapter);
+			assert.equal(tm.testAll(node, path).success, true);
 		});
 	});
 });

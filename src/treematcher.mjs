@@ -528,6 +528,30 @@ TreeMatcher.prototype = {
 			method || treeMethod.orCount
 		);
 	},
+	findChildIndex: function(parentNode, childNode) {
+		if (null == parentNode || null == childNode) return null;
+		var count = this.elAdapter.childCount(parentNode);
+		for (var i = 0; i < count; i++) {
+			if (this.elAdapter.childIndexGet(parentNode, i) === childNode) {
+				return i;
+			}
+		}
+		return null;
+	},
+	pathToEntries: function(path) {
+		if (!(path instanceof Array)) return [];
+		var entries = [];
+		for (var i = 0; i < path.length; i++) {
+			var node = path[i];
+			var parentNode = i > 0 ? path[i - 1] : null;
+			entries.push({
+				node,
+				parentNode,
+				childIndex: this.findChildIndex(parentNode, node),
+			});
+		}
+		return entries;
+	},
 	testPathAdapter: function(m, opt) {
 		if (!m.rulesName) {
 			console.error('rulesName is '+(typeof m.rulesName));
@@ -541,16 +565,31 @@ TreeMatcher.prototype = {
 			greedy: rName.repeatGreedy,
 			source: opt.source,
 			sourceName: rName.source,
-			test: function(node) {
+			test: function(pathEntry) {
+				var node = pathEntry && pathEntry.node ? pathEntry.node : pathEntry;
+				var parentNode = pathEntry && pathEntry.parentNode;
+				var childIndex = pathEntry && pathEntry.childIndex;
 				var name = m.testNodeName(node);
 				var attrs = m.testNodeAttrs(node);
+				var nextSibling;
+				var prevSibling;
 				var success =
 					self.getItemSuccessSub(name) &&
 					self.getItemSuccessSub(attrs);
+				if (success && m.rulesNextSibling.length > 0) {
+					nextSibling = m.testNodeSiblings(parentNode, childIndex, 'next');
+					success = self.getItemSuccessSub(nextSibling);
+				}
+				if (success && m.rulesPrevSibling.length > 0) {
+					prevSibling = m.testNodeSiblings(parentNode, childIndex, 'prev');
+					success = self.getItemSuccessSub(prevSibling);
+				}
 				return {
 					success,
 					name,
 					attrs,
+					nextSibling,
+					prevSibling,
 				};
 			},
 			getSuccess: self.getItemSuccessSub,
@@ -577,7 +616,8 @@ TreeMatcher.prototype = {
 		var self = this;
 		opt = this.optExtend({source: testPathSrc}, opt);
 		var m = this.initRule(opt, function(path) {
-			return self.testRuleOrder(testPath, path, function(m) {
+			var pathEntries = self.pathToEntries(path);
+			return self.testRuleOrder(testPath, pathEntries, function(m) {
 				return self.testPathAdapter(m, opt);
 			}, function({success, active, failed, attemptsList: attempts}) {
 				return {

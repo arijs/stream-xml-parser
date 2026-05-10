@@ -212,6 +212,19 @@ There's three types of _Rules_ you can add:
       ]);
       ```
 
+    Path object entries also support sibling constraints for the ancestor node being matched:
+    - ```js
+      treeMatcher.path([
+        'html',
+        {
+          name: 'body',
+          prevSibling: ['head <1>'],
+          sibling: ['aside <?>']
+        }
+      ]);
+      ```
+    This allows path rules to assert previous/next siblings for each ancestor entry.
+
   But what if, for example, you want to search some tags that are _descendant_ of some element (ie, not only direct children but child of a child and so on) down any number of levels, and even with _limits_ (minimum and maximum number of levels down)?
 
   For that you can use _Repeaters_, just like you have with regular expressions. See the details below.
@@ -523,6 +536,37 @@ Nodes Transformer source: https://github.com/arijs/stream-xml-parser/blob/master
 Example Test case: https://github.com/arijs/stream-xml-parser/blob/master/test/printertransform.js#L113-L189
 
 A more practical example: https://github.com/arijs/vue-prerender/blob/master/examples/full/prerender.mjs#L258-L348
+
+## CSS Selector Helper
+
+You can create matchers from CSS selector strings with:
+
+```js
+import { getMatcherFromCssSelector } from '@arijs/stream-xml-parser';
+
+const matcher = getMatcherFromCssSelector('div#root > span.note', elAdapter);
+```
+
+Supported selector subset:
+
+- `*`, tag names (`div`), id (`#id`), class (`.class`)
+- attributes with presence (`[name]`) and operators:
+  - equality: `[name="value"]`
+  - not equal: `[name!="value"]`
+  - token contains: `[name~="value"]`
+  - language prefix: `[name|="value"]`
+  - starts with: `[name^="value"]`
+  - ends with: `[name$="value"]`
+  - contains substring: `[name*="value"]`
+- grouped selectors (`a, b`)
+- combinators: descendant (`a b`), direct child (`a > b`), adjacent (`a + b`), subsequent (`a ~ b`)
+
+Unsupported selector rules throw errors (for example pseudo classes and pseudo elements).
+
+### Browser Bundle Note
+
+`css-selector-parser` is configured as an explicit external dependency in Rollup builds.
+For browser `iife`/`amd` outputs, make sure a compatible global `cssSelectorParser` is available before loading this package.
 
 ## FAQ
 

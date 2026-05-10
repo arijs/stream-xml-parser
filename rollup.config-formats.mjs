@@ -7,6 +7,12 @@ import buble from '@rollup/plugin-buble';
 import inject from '@rollup/plugin-inject';
 import pkg from './package.json' with { type: 'json' };
 
+// Keep parser dependency external in all bundles.
+var externalDeps = ['css-selector-parser'];
+var externalGlobals = {
+	'css-selector-parser': 'cssSelectorParser'
+};
+
 function beforeExt(name, add) {
 	var i = name.lastIndexOf('.');
 	return i === -1
@@ -20,6 +26,9 @@ const noMinify = opt && opt.noMinify;
 
 function format(opt, plugin) {
 	if (!(opt.plugins instanceof Array)) opt.plugins = [];
+	opt.external = (opt.external || []).concat(externalDeps);
+	opt.output = opt.output || {};
+	opt.output.globals = Object.assign({}, externalGlobals, opt.output.globals || {});
 	opt.plugins.unshift(inject({
 		'_ObjectAssign': path.resolve('polyfill/object-assign.mjs')
 	}));
