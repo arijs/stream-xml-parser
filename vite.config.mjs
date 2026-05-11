@@ -3,6 +3,9 @@ import { defineConfig } from 'vite';
 const externalDeps = ['css-selector-parser'];
 
 export default defineConfig({
+	// When builder option is not undefined (or when calling vite build --app), vite build will opt-in into building the entire app instead.
+	// https://vite.dev/guide/api-environment-frameworks#environments-during-build
+	builder: {},
 	build: {
 		lib: {
 			entry: 'src/index.mjs',

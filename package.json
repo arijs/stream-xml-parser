@@ -12,8 +12,8 @@
 		".": "./dist/arijs-stream-xml-parser.esm.js"
 	},
 	"scripts": {
-		"build": "vite build --app",
-		"watch": "vite build --app --watch",
+		"build": "vite build",
+		"watch": "vite build --watch",
 		"test": "node scripts/test.mjs",
 		"test:legacy": "node test/test.js"
 	},
