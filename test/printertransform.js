@@ -1,11 +1,16 @@
-var fs = require('fs');
-var path = require('path');
-var XMLParser = require('..');
-var printerTransform = XMLParser.printerTransform;
-var Printer = XMLParser.Printer;
-var getParser = XMLParser.getParser;
+import fs from 'fs';
+import pathModule from 'path';
+import { dirname } from 'path';
+import { fileURLToPath } from 'url';
+import xmlParserModule from '../src/index.mjs';
 
-var fileOpt = { encoding: 'utf8' };
+const __dirname = dirname(fileURLToPath(import.meta.url));
+
+const printerTransform = xmlParserModule.printerTransform;
+const Printer = xmlParserModule.Printer;
+const getParser = xmlParserModule.getParser;
+
+const fileOpt = { encoding: 'utf8' };
 
 var printer;
 
@@ -107,8 +112,8 @@ function printTagPath(path) {
 	console.log('\n'+path.join('\n')+'\n');
 }
 
-module.exports = function testPrinterTransform() {
-	var fpath = path.resolve(__dirname, 'examples/template.html');
+export default function testPrinterTransform() {
+	var fpath = pathModule.resolve(__dirname, 'examples/template.html');
 	fs.readFile(fpath, fileOpt, function(err, html) {
 		if (err) return console.error(err);
 		var parser = getParser();

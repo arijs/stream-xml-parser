@@ -1,3 +1,4 @@
+import { getNodeCtx, buildNodeEntry } from './treewalk.mjs';
 
 var echo = x => x;
 
@@ -129,7 +130,11 @@ Printer.prototype = {
 	printTagChildrenAsync: function(node, level, path, cbPrint) {
 		return this.printAsync(this.elAdapter.childrenGet(node), level, path, cbPrint);
 	},
-	printTag: function(node, level, path) {
+	printTag: function(nodeEntry, level, path) {
+		var node = nodeEntry.node;
+		if (null == node) {
+			return cbPrint(new Error('Printer.printTag: Node is null or undefined'));
+		}
 		var nc = this.elAdapter.childCount(node);
 		var sc = 0 == nc && this.isVoidTag(node);
 		var st = this.isStrictTag(node);
@@ -138,7 +143,7 @@ Printer.prototype = {
 		out += this.printTagOpen(node, sc);
 		if (nc > 0) {
 			out += this.printTagSpaceAfterOpen(level, st, node);
-			out += this.printTagChildren(node, level+1, path.concat([node]));
+			out += this.printTagChildren(node, level+1, path.concat([nodeEntry]));
 			out += this.printTagSpaceBeforeClose(level, st, node);
 		}
 		if (!sc) {
@@ -148,10 +153,14 @@ Printer.prototype = {
 
 		return out;
 	},
-	printTagAsync: function(node, level, path, cbPrint) {
+	printTagAsync: function(nodeEntry, level, path, cbPrint) {
+		var node = nodeEntry.node;
+		if (null == node) {
+			return cbPrint(new Error('Printer.printTagAsync: Node is null or undefined'));
+		}
 		var nc = this.elAdapter.childCount(node);
 		if (nc) {
-			this.printTagChildrenAsync(node, level+1, path.concat([node]), cbChildren.bind(this));
+			this.printTagChildrenAsync(node, level+1, path.concat([nodeEntry]), cbChildren.bind(this));
 		} else {
 			cbChildren.call(this);
 		}
@@ -228,11 +237,14 @@ Printer.prototype = {
 		return cbPrint(null, this.printInstruction(ftext, level));
 	},
 	print: function(tree, level, path) {
-		var tc = tree.length;
-		var out = '';
 		path = path || [];
+		var tc = tree.length;
+		var pathLen = path.length;
+		var out = '';
 		for (var i = 0; i < tc; i++) {
 			var node = tree[i];
+			var parentEntry = pathLen > 0 ? path[pathLen - 1] : null;
+			var nodeEntry = buildNodeEntry(node, parentEntry ? parentEntry.node : null, getNodeCtx(i, tc));
 			if (this.elAdapter.isText(node)) {
 				out += this.printText(this.elAdapter.textValueGet(node), level, path);
 			} else if (this.elAdapter.isComment(node)) {
@@ -242,19 +254,30 @@ Printer.prototype = {
 			} else if (this.elAdapter.isInstruction(node)) {
 				out += this.printInstruction(this.elAdapter.textValueGet(node), level, path);
 			} else {
-				out += this.printTag(node, level, path);
+				out += this.printTag(nodeEntry, level, path);
 			}
 		}
 		return out;
 	},
 	printAsync: function(tree, level, path, cbPrint) {
-		var out = '';
 		path = path || [];
+		var out = '';
+		var i = 0;
+		if (null == tree) {
+			throw new Error('Printer.printAsync: Tree is null or undefined');
+		} else if (null == path) {
+			throw new Error('Printer.printAsync: Path is null or undefined');
+		}
+		var tc = tree.length;
+		var pathLen = path.length;
 		cbNext = cbNext.bind(this);
 		return runNext.call(this);
 		function runNext() {
-			if (tree.length) {
-				var node = tree.shift();
+			if (i < tc) {
+				var node = tree[i];
+				var parentEntry = pathLen > 0 ? path[pathLen - 1] : null;
+				var nodeEntry = buildNodeEntry(node, parentEntry ? parentEntry.node : null, getNodeCtx(i, tc));
+				i++; // do this after getNodeCtx gets the correct index
 				if (this.elAdapter.isText(node)) {
 					this.printTextAsync(this.elAdapter.textValueGet(node), level, path, cbNext);
 				} else if (this.elAdapter.isComment(node)) {
@@ -264,7 +287,7 @@ Printer.prototype = {
 				} else if (this.elAdapter.isInstruction(node)) {
 					this.printInstructionAsync(this.elAdapter.textValueGet(node), level, path, cbNext);
 				} else {
-					this.printTagAsync(node, level, path, cbNext);
+					this.printTagAsync(nodeEntry, level, path, cbNext);
 				}
 			} else {
 				cbPrint(null, out);

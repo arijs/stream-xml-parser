@@ -20,8 +20,14 @@ export function getMatcherFrom(item, elAdapter, opt) {
 		if (item[2] instanceof Array) {
 			tm.path(item[2], opt && (opt.path || opt));
 		}
-		if (OBJECT === typeof item[3]) {
-			tm.opt = item[3];
+		if (item[3] instanceof Array) {
+			tm.siblingFromArray(item[3], 'next', opt && (opt.sibling || opt));
+		}
+		if (item[4] instanceof Array) {
+			tm.siblingFromArray(item[4], 'prev', opt && (opt.sibling || opt));
+		}
+		if (OBJECT === typeof item[5]) {
+			tm.opt = item[5];
 		}
 	} else if (OBJECT === typeof item) {
 		if (null != item.name) {
@@ -32,6 +38,12 @@ export function getMatcherFrom(item, elAdapter, opt) {
 		}
 		if (item.path instanceof Array) {
 			tm.path(item.path, item.pathOpt || opt && (opt.path || opt));
+		}
+		if (item.sibling instanceof Array) {
+			tm.siblingFromArray(item.sibling, 'next', item.siblingOpt || opt && (opt.sibling || opt));
+		}
+		if (item.prevSibling instanceof Array) {
+			tm.siblingFromArray(item.prevSibling, 'prev', item.prevSiblingOpt || opt && (opt.sibling || opt));
 		}
 		if (OBJECT === typeof item.opt) {
 			tm.opt = item.opt;
@@ -84,6 +96,27 @@ export var treeMethod = {
 			};
 		}
 	},
+	andCount: {
+		init: function() {
+			return {
+				and: 0,
+				not: 0,
+				success: true
+			};
+		},
+		reduce: function(b, a, {rule}) {
+			if (b) {
+				a.and += 1;
+			} else {
+				a.not += 1;
+			}
+			a.success = a.success && b;
+			return {
+				result: a,
+				_break: !b
+			};
+		}
+	},
 	orList: {
 		init: function(rules) {
 			return {
@@ -107,16 +140,20 @@ export var treeMethod = {
 			return result
 		}
 	},
-	orListItem: {
+	orCount: {
 		init: function(rules) {
 			return {
-				yes: [],
-				not: [],
+				yes: 0,
+				not: 0,
 				success: rules.length === 0
 			};
 		},
-		reduce: function(b, a, {item}) {
-			a[b?'yes':'not'].push(item);
+		reduce: function(b, a, {itemResult}) {
+			if (b) {
+				a.yes += 1;
+			} else {
+				a.not += 1;
+			}
 			a.success = b || a.success;
 			return {
 				result: a,
@@ -124,13 +161,13 @@ export var treeMethod = {
 			};
 		},
 		final: function(result) {
-			if (0 === result.not.length) {
+			if (0 === result.not) {
 				result.success = true
 			}
 			return result
 		}
 	},
-	orCount: {
+	andRepeatersCount: {
 		init: function(rules) {
 			var count = [], rc = rules.length;
 			for (var i = 0; i < rc; i++) count[i] = 0;
@@ -192,6 +229,13 @@ var defaultOpts = {
 		normalizeAttrName: strPrepare.spaceLower,
 		normalizeAttrValue: strPrepare.spaceLower,
 	},
+	sibling: {
+		repeatMin: 1,
+		repeatMax: Infinity,
+		repeatGreedy: false,
+		testName: true,
+		testAttrs: true,
+	},
 	sub: {
 		repeatMin: 1,
 		repeatMax: 1,
@@ -219,12 +263,16 @@ TreeMatcher.prototype = {
 	rulesName: null,
 	rulesAttrs: null,
 	rulesPath: null,
+	rulesNextSibling: null,
+	rulesPrevSibling: null,
 	rulesSub: null,
 	opt: null,
 	clearRules: function() {
 		this.rulesName = [];
 		this.rulesAttrs = [];
 		this.rulesPath = [];
+		this.rulesNextSibling = [];
+		this.rulesPrevSibling = [];
 		this.rulesSub = [];
 		this.opt = null;
 	},
@@ -419,7 +467,7 @@ TreeMatcher.prototype = {
 			this.rulesName,
 			nodeName,
 			this.testNameRule,
-			method || treeMethod.orList
+			method || treeMethod.orCount
 		);
 	},
 	getAttrTestFromString: function(testAttr) {
@@ -502,7 +550,7 @@ TreeMatcher.prototype = {
 			this.rulesAttrs,
 			this.nodeAttrsToArray(node),
 			this.testAttrRule,
-			method || treeMethod.orCount
+			method || treeMethod.andRepeatersCount
 		);
 	},
 	testPathAdapter: function(m, opt) {
@@ -518,20 +566,47 @@ TreeMatcher.prototype = {
 			greedy: rName.repeatGreedy,
 			source: opt.source,
 			sourceName: rName.source,
-			test: function(node) {
+			test: function(pathEntry) {
+				var node = pathEntry.node;
+				var parentNode = pathEntry.parentNode;
+				var childIndex = pathEntry.childIndex;
 				var name = m.testNodeName(node);
 				var attrs = m.testNodeAttrs(node);
+				var nextSibling;
+				var prevSibling;
 				var success =
 					self.getItemSuccessSub(name) &&
 					self.getItemSuccessSub(attrs);
+				if (success && m.rulesNextSibling.length > 0) {
+					nextSibling = m.testNodeSiblings(parentNode, childIndex, 'next');
+					success = self.getItemSuccessSub(nextSibling);
+				}
+				if (success && m.rulesPrevSibling.length > 0) {
+					prevSibling = m.testNodeSiblings(parentNode, childIndex, 'prev');
+					success = self.getItemSuccessSub(prevSibling);
+				}
 				return {
 					success,
 					name,
 					attrs,
+					nextSibling,
+					prevSibling,
 				};
 			},
 			getSuccess: self.getItemSuccessSub,
 		}
+	},
+	testSiblingAdapter: function(rule) {
+		return {
+			min: rule.repeatMin,
+			max: rule.repeatMax,
+			greedy: rule.repeatGreedy,
+			source: rule.source,
+			test: function(sibling) {
+				return rule.test(sibling);
+			},
+			getSuccess: rule.getSuccess,
+		};
 	},
 	path: function(testPathSrc, opt) {
 		var tpc = testPathSrc.length;
@@ -560,25 +635,177 @@ TreeMatcher.prototype = {
 	testPathRule: function(rule, path) {
 		return rule.test(path);
 	},
-	testPath: function(path) {
+	testPath: function(path, method) {
 		return this.testRuleItem(
 			this.rulesPath,
 			path,
 			this.testPathRule,
-			treeMethod.orList
+			method || treeMethod.orCount
 		);
 	},
-	testAll: function(testNode, testPath) {
-		var name, attr, path, success = false;
-		name = this.testNodeName(testNode);
-		if (name.success) {
-			attr = this.testNodeAttrs(testNode);
-			if (attr.success) {
-				path = this.testPath(testPath);
-				success = path.success;
+	sibling: function(testSiblingSrc, opt) {
+		var testSibling = getMatcherFrom(testSiblingSrc, this.elAdapter, opt);
+		opt = this.optExtend(
+			{},
+			defaultOpts.sibling,
+			{ source: testSiblingSrc },
+			testSibling.opt,
+			opt
+		);
+		opt.testName = true;
+		opt.testAttrs = true;
+		this._siblingToRules(testSibling, opt, 'next');
+	},
+	prevSibling: function(testSiblingSrc, opt) {
+		var testSibling = getMatcherFrom(testSiblingSrc, this.elAdapter, opt);
+		opt = this.optExtend(
+			{},
+			defaultOpts.sibling,
+			{ source: testSiblingSrc },
+			testSibling.opt,
+			opt
+		);
+		opt.testName = true;
+		opt.testAttrs = true;
+		this._siblingToRules(testSibling, opt, 'prev');
+	},
+	_siblingToRules: function(testSibling, opt, direction) {
+		var siblingNameRule = testSibling.rulesName && testSibling.rulesName[0];
+		if (siblingNameRule) {
+			opt = this.optExtend({}, opt, {
+				repeatMin: siblingNameRule.repeatMin,
+				repeatMax: siblingNameRule.repeatMax,
+				repeatGreedy: siblingNameRule.repeatGreedy,
+			});
+		}
+		var self = this;
+		var m = this.initRule(opt, function({node: siblingNode, index: siblingIndex}) {
+			var success = true;
+			var name;
+			var attrs;
+			if (success && opt.testName) {
+				name = testSibling.testNodeName(siblingNode);
+				success = name.success;
+			}
+			if (success && opt.testAttrs) {
+				attrs = testSibling.testNodeAttrs(siblingNode);
+				success = attrs.success;
+			}
+			return {
+				name,
+				attrs,
+				success,
+			};
+		}, this.getItemSuccessSub);
+		if ('prev' === direction) {
+			this.rulesPrevSibling.push(m);
+		} else {
+			this.rulesNextSibling.push(m);
+		}
+	},
+	siblingFromArray: function(list, direction, preOpt) {
+		var c = list.length;
+		for (var i = 0; i < c; i++) {
+			if ('prev' === direction) {
+				this.prevSibling(list[i], preOpt);
+			} else {
+				this.sibling(list[i], preOpt);
 			}
 		}
-		return { success, name, attr, path };
+	},
+	testSiblingRule: function(rule, sibling) {
+		return rule.test(sibling);
+	},
+	testNodeSiblings: function(parentNode, childIndex, direction, method) {
+		if (null == parentNode || null == childIndex) {
+			return { success: false };
+		}
+		var childCount = this.elAdapter.childCount(parentNode);
+		var siblingIndices = [];
+		
+		if ('prev' === direction) {
+			// Previous siblings: [childIndex-1, childIndex-2, ..., 0]
+			for (var i = childIndex - 1; i >= 0; i--) {
+				siblingIndices.push(i);
+			}
+		} else {
+			// Next siblings: [childIndex+1, childIndex+2, ..., childCount-1]
+			for (var i = childIndex + 1; i < childCount; i++) {
+				siblingIndices.push(i);
+			}
+		}
+		
+		// Convert indices to sibling nodes with their indices
+		var siblings = [];
+		for (var i = 0; i < siblingIndices.length; i++) {
+			var idx = siblingIndices[i];
+			var siblingNode = this.elAdapter.childIndexGet(parentNode, idx);
+			siblings.push({
+				node: siblingNode,
+				index: idx
+			});
+		}
+		
+		var ruleList = 'prev' === direction ? this.rulesPrevSibling : this.rulesNextSibling;
+		var self = this;
+		return this.testRuleOrder(ruleList, siblings, function(rule) {
+			return self.testSiblingAdapter(rule);
+		}, function({success, active, failed, attemptsList: attempts}) {
+			return {
+				success,
+				active,
+				failedCount: failed.length,
+				attemptsCount: attempts.length,
+				failed,
+				attempts,
+			};
+		});
+	},
+	testAll: function(testNode, testPath, opt) {
+		var name, attr, path, nextSibling, prevSibling, success = false;
+		name = this.testNodeName(testNode.node, opt && opt.methodName);
+		if (name.success) {
+			attr = this.testNodeAttrs(testNode.node, opt && opt.methodAttrs);
+			if (attr.success) {
+				path = this.testPath(testPath, opt && opt.methodPath);
+				if (path.success) {
+					var ancestorsCount = testPath ? testPath.length : 0;
+					// var pathEntry = testPath && ancestorsCount ? testPath[ancestorsCount - 1] : null;
+					var parentNode = testNode.parentNode;
+					var childIndex = testNode.childIndex;
+					var rulesNextSibling = this.rulesNextSibling.length > 0 ? this.rulesNextSibling : null;
+					var rulesPrevSibling = this.rulesPrevSibling.length > 0 ? this.rulesPrevSibling : null;
+
+					if (
+						(rulesNextSibling || rulesPrevSibling) &&
+						ancestorsCount &&
+						(null == parentNode || null == childIndex)
+					) {
+						// console.error(`>>> testAll: parentNode or childIndex not found`, {testNode, testPath, opt, rulesNextSibling, rulesPrevSibling, parentNode, childIndex});
+						throw new Error('Sibling tests require path with parent node and child index');
+					}
+
+					// Test next siblings if rules exist
+					if (rulesNextSibling) {
+						nextSibling = this.testNodeSiblings(parentNode, childIndex, 'next', opt && opt.methodSiblings);
+						if (!nextSibling.success) {
+							return { success: false, name, attr, path, nextSibling, prevSibling };
+						}
+					}
+
+					// Test prev siblings if rules exist
+					if (rulesPrevSibling) {
+						prevSibling = this.testNodeSiblings(parentNode, childIndex, 'prev', opt && opt.methodSiblings);
+						if (!prevSibling.success) {
+							return { success: false, name, attr, path, nextSibling, prevSibling };
+						}
+					}
+
+					success = true;
+				}
+			}
+		}
+		return { success, name, attr, path, nextSibling, prevSibling };
 	},
 	sub: function(testSubSrc, opt) {
 		// opt = {...defaultOpts.name, source: testName, ...opt};
@@ -590,27 +817,45 @@ TreeMatcher.prototype = {
 			testSub.opt,
 			opt
 		);
+		var self = this;
 		var m = this.initRule(opt, function({node: testNode, path: testPath}) {
 			var success = true;
 			var name;
 			var attrs;
 			var path;
+			var nextSibling;
+			var prevSibling;
 			if (success && m.testName) {
-				name = testSub.testNodeName(testNode);
+				name = testSub.testNodeName(testNode.node);
 				success = name.success;
 			}
 			if (success && m.testAttrs) {
-				attrs = testSub.testNodeAttrs(testNode);
+				attrs = testSub.testNodeAttrs(testNode.node);
 				success = attrs.success;
 			}
 			if (success && m.testPath) {
 				path = testSub.testPath(testPath);
 				success = path.success;
 			}
+			// Test siblings if rules exist and we have the necessary context
+			var parentNode = testNode.parentNode;
+			var childIndex = testNode.childIndex;
+			if (success && parentNode != null && childIndex != null) {
+				if (testSub.rulesNextSibling.length > 0) {
+					nextSibling = testSub.testNodeSiblings(parentNode, childIndex, 'next');
+					success = nextSibling.success;
+				}
+				if (success && testSub.rulesPrevSibling.length > 0) {
+					prevSibling = testSub.testNodeSiblings(parentNode, childIndex, 'prev');
+					success = prevSibling.success;
+				}
+			}
 			return {
 				name,
 				attrs,
 				path,
+				nextSibling,
+				prevSibling,
 				success,
 			};
 		}, this.getItemSuccessSub);
@@ -626,11 +871,14 @@ TreeMatcher.prototype = {
 		return rule.test(sub);
 	},
 	testNodeSub: function(node, path, method) {
+		// var pathEntry = path && path.length > 0 ? path[path.length - 1] : null;
+		// var parentNode = pathEntry ? pathEntry.parentNode : null;
+		// var childIndex = pathEntry ? pathEntry.childIndex : null;
 		return this.testRuleItem(
 			this.rulesSub,
 			{node, path},
 			this.testSubRule,
-			method || treeMethod.orList
+			method || treeMethod.orCount
 		);
 	},
 };

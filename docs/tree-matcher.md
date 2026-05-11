@@ -212,9 +212,64 @@ There's three types of _Rules_ you can add:
       ]);
       ```
 
+    Path object entries also support sibling constraints for the ancestor node being matched:
+    - ```js
+      treeMatcher.path([
+        'html',
+        {
+          name: 'body',
+          prevSibling: ['head <1>'],
+          sibling: ['aside <?>']
+        }
+      ]);
+      ```
+    This allows path rules to assert previous/next siblings for each ancestor entry.
+
   But what if, for example, you want to search some tags that are _descendant_ of some element (ie, not only direct children but child of a child and so on) down any number of levels, and even with _limits_ (minimum and maximum number of levels down)?
 
   For that you can use _Repeaters_, just like you have with regular expressions. See the details below.
+
+- **Sibling Matching:**
+  Searchs nodes by their adjacent siblings (next or previous).
+
+  This is a low-level matcher, not a direct CSS combinator engine. Sibling rules are evaluated in order from the immediate adjacent sibling outward, and the sibling list must be fully consumed by your rules. If you want to allow "anything else" before or after a specific sibling condition, you must add that explicitly (for example with `* <*>`).
+
+  You can filter sibling nodes by _Name_, _Attributes_, and repeaters to match multiple consecutive siblings:
+
+  - *Next Siblings:*
+    - `treeMatcher.sibling("span")` - match nodes that have a `<span>` as their immediate next sibling.
+    - `treeMatcher.sibling("div <+>")` - match nodes followed by one or more `<div>` siblings.
+    - `treeMatcher.sibling(/^(p|section)$/)` - match nodes with a next sibling that is either `<p>` or `<section>`.
+    - `treeMatcher.sibling(["div", ["id"]])` - match nodes with a next sibling `<div>` that has an `id` attribute.
+    - `treeMatcher.sibling({name: "span", attrs: [{name: "class", value: /\bhighlight\b/}]})` - match nodes with a `<span class="...highlight...">` next sibling.
+
+  - *Previous Siblings:*
+    - `treeMatcher.prevSibling("h1")` - match nodes that are immediately preceded by an `<h1>` sibling.
+    - `treeMatcher.prevSibling("span <+>")` - match nodes preceded by one or more `<span>` siblings.
+    - `treeMatcher.prevSibling(name => name === 'img')` - match nodes with an `<img>` as previous sibling using a function predicate.
+
+  - *Multiple Sibling Rules:*
+    You can add multiple sibling rules to the same matcher:
+    ```js
+    treeMatcher.name('p');
+    treeMatcher.prevSibling('h1');      // must be preceded by <h1>
+    treeMatcher.sibling('span <?>')     // may be followed by optional <span>
+    ```
+    This will match `<p>` elements that come immediately after `<h1>` and may have an optional `<span>` after them.
+
+  - *Explicitly allowing extra siblings:*
+    If you need to allow unmatched siblings before the earliest previous sibling rule or after the latest next sibling rule, add explicit wildcard rules:
+    ```js
+    // Current node is <b>, siblings are: <a><x><y><b><m>
+    treeMatcher.name('b');
+
+    // Allow any number of immediate previous siblings, then require one <a>
+    treeMatcher.prevSibling('* <*>');
+    treeMatcher.prevSibling('a <1>');
+
+    // Allow any number of remaining next siblings
+    treeMatcher.sibling('* <*>');
+    ```
 
 ## Repeaters
 
@@ -268,6 +323,17 @@ They have almost the same syntax from regular expressions. Examples:
   - `{name: "* <2,6>", attrs: [{name:"class", value: /\bname-of-class\b/}]}` - Accepts from two to six nodes with any name, but they must have the class `name-of-class`.
   - `"* <*>"` - Again, accept anything, including nothing at all.
 
+- **Siblings:**
+  Both next and previous sibling rules support repeaters the same way as attributes and path:
+  - `treeMatcher.sibling("span <+>")` - match nodes followed by one or more `<span>` siblings.
+  - `treeMatcher.sibling("div <?>")` - match nodes with an optional next `<div>` sibling.
+  - `treeMatcher.prevSibling("li <2,4>")` - match nodes preceded by 2 to 4 `<li>` siblings.
+  - `treeMatcher.sibling("* <*>")` - explicit wildcard rule to consume any number of next siblings (including none).
+  - `treeMatcher.prevSibling("* <*>")` - explicit wildcard rule to consume any number of previous siblings (including none).
+  - `treeMatcher.sibling("img <0>")` - match nodes that have zero `<img>` next siblings (negation).
+
+  Because sibling matching uses ordered rule matching with full consumption, `* <*>` is commonly used as an explicit "anything else" segment when needed.
+
 ### Expanded repeaters (object)
 
 The object syntax for the repeat options are as follows:
@@ -280,13 +346,13 @@ opt = {
 }
 ```
 
-The default values are actually different wether they're for _Attribute_ or _Path_ rules:
+The default values are actually different wether they're for _Attribute_, _Path_, or _Sibling_ rules:
 
-| Default        | Attribute | Path  |
-| -------------- | --------- | ----- |
-| `repeatMin`    | 1         | 1     |
-| `repeatMax`    | Infinity  | 1     |
-| `repeatGreedy` | false     | false |
+| Default        | Attribute | Path  | Sibling |
+| -------------- | --------- | ----- | ------- |
+| `repeatMin`    | 1         | 1     | 1       |
+| `repeatMax`    | Infinity  | 1     | Infinity|
+| `repeatGreedy` | false     | false | false   |
 
 - **Attributes:**
   - `treeMatcher.attr(attrRule: String | Array | Object, opt: Object)` - you can send the repeater options in the second argument to the `attr()` function.
@@ -301,6 +367,164 @@ The default values are actually different wether they're for _Attribute_ or _Pat
   - `{name: "*", attrs: [{name:"class", value: /\bname-of-class\b/}], nameOpt: {repeatMin: 2, repeatMax: 6}}` - Accepts from two to six nodes with any name, but they must have the class `name-of-class`.
   - `{nameOpt: {repeatMin: 0, repeatMax: Infinity}}` - Again, accept anything, including nothing at all.
 
+- **Siblings:**
+  You can send the repeater options in the second argument to `sibling()` or `prevSibling()`:
+  - `treeMatcher.sibling("span", {repeatMin: 1, repeatMax: Infinity})` - match nodes followed by one or more `<span>` siblings.
+  - `treeMatcher.sibling("div", {repeatMin: 0, repeatMax: 1})` - match nodes with an optional next `<div>` sibling.
+  - `treeMatcher.prevSibling("h1", {repeatMin: 1, repeatMax: 1})` - match nodes immediately preceded by exactly one `<h1>` sibling.
+  - `treeMatcher.sibling({name: "img", attrs: [["alt"]]}, {repeatMin: 2, repeatMax: 5})` - match nodes with 2 to 5 `<img alt="...">` siblings following them.
+
+## Sub-Rules with Siblings
+
+You can also combine sub-rules (using `TreeMatcher.fromArray()`) with sibling matching. This is useful when you want to match nodes based on multiple criteria patterns and their sibling relationships.
+
+### Using `testNodeSub()` with Sibling Support
+
+The `testNodeSub()` method can now accept an optional `childIndex` parameter to enable sibling testing:
+
+```javascript
+const tm = TreeMatcher.fromArray([
+  ['div', [['id', 'main']], ['html', 'body'], ['span'], ['p']]
+], elAdapter);
+
+// Test with sibling support
+const bodyNode = getNodeFromTree(tree, 'body');
+const divNode = getNodeFromTree(bodyNode, 'div'); // at index 1
+const testPath = [tree, bodyNode];
+
+// testNodeSub(node, path, childIndex)
+const result = tm.testNodeSub(divNode, testPath, 1);
+// Matches if:
+// - node is <div id="main">
+// - it's under <html><body>
+// - it has a next <span> sibling
+// - it has a previous <p> sibling
+```
+
+### Array Factory Form with Siblings
+
+Use the array form to define sub-rules with sibling specifications:
+
+```javascript
+// Format: [name, attrs, path, nextSiblings, prevSiblings]
+TreeMatcher.fromArray([
+  ['h2', [], ['article'], ['p']],      // h2 followed by p
+  ['div', [['id', 'root']], [], [], []] // div#root with no siblings
+], elAdapter)
+```
+
+### Object Factory Form with Siblings
+
+Use the object syntax for clearer, more readable definitions:
+
+```javascript
+TreeMatcher.fromArray([
+  {
+    name: 'button',
+    attrs: [['type', 'submit']],
+    path: ['form'],
+    sibling: ['input'],        // next sibling must be input
+    prevSibling: ['label']     // previous sibling must be label
+  },
+  {
+    name: 'img',
+    attrs: [['alt']],
+    sibling: ['span <?>']      // optional next span sibling
+  }
+], elAdapter)
+```
+
+### Backward Compatibility
+
+The `testNodeSub()` method remains backward compatible with existing code:
+
+```javascript
+// Old usage still works (siblings not tested)
+tm.testNodeSub(node, path);
+tm.testNodeSub(node, path, method);
+
+// New usage with sibling support
+tm.testNodeSub(node, path, childIndex);
+tm.testNodeSub(node, path, childIndex, method);
+```
+
+If `childIndex` is not provided, sibling rules in the sub-matcher are not tested, allowing you to use sub-rules for name/attributes/path matching only.
+
+## Practical Examples
+
+### Example: Find headings followed by paragraphs
+
+Match all `<h2>` headings that are immediately followed by a `<p>` paragraph:
+
+```js
+const tm = new TreeMatcher(elAdapter);
+tm.name('h2');
+tm.sibling('p');  // next sibling must be <p>
+```
+
+In PrinterTransform, you could use this to wrap such pairs:
+
+```js
+am.addRule({
+  matcher: {
+    name: 'h2',
+    sibling: ['p']
+  },
+  callback: function(opt) {
+    // Found an <h2> followed by <p>
+    return opt.callback(null, {
+      after: {text: '<!-- heading with paragraph pair -->', noFormat: true}
+    });
+  }
+});
+```
+
+### Example: Find list items with images
+
+Match `<li>` items that contain an image in their immediate next siblings or that are preceded by other `<li>` elements:
+
+```js
+const tm = new TreeMatcher(elAdapter);
+tm.name('li');
+tm.prevSibling('li <*>');    // preceded by zero or more <li>s
+tm.sibling('img <?>')        // optionally followed by <img>
+```
+
+### Example: Explicit sibling consumption
+
+Because sibling rules are low-level and ordered, these two examples behave differently:
+
+```js
+// Example A: fails if there are unmatched next siblings left
+// Siblings after <div>: <span><span><p>
+const tmA = new TreeMatcher(elAdapter);
+tmA.name('div');
+tmA.sibling('span <+>');
+// This does NOT match because <p> is still unconsumed.
+
+// Example B: caller explicitly allows trailing siblings
+const tmB = new TreeMatcher(elAdapter);
+tmB.name('div');
+tmB.sibling('span <+>');
+tmB.sibling('* <*>');
+// This matches: span+ is consumed first, wildcard consumes remaining siblings.
+```
+
+### Example: Adjacent and non-adjacent previous siblings
+
+```js
+// Adjacent requirement (like direct previous sibling)
+const tm1 = new TreeMatcher(elAdapter);
+tm1.name('b');
+tm1.prevSibling('a <1>');
+
+// Non-adjacent requirement with explicit gap allowance
+const tm2 = new TreeMatcher(elAdapter);
+tm2.name('b');
+tm2.prevSibling('* <*>');
+tm2.prevSibling('a <1>');
+```
+
 ## Sources and other examples
 
 Package: https://www.npmjs.com/package/@arijs/stream-xml-parser
@@ -312,6 +536,37 @@ Nodes Transformer source: https://github.com/arijs/stream-xml-parser/blob/master
 Example Test case: https://github.com/arijs/stream-xml-parser/blob/master/test/printertransform.js#L113-L189
 
 A more practical example: https://github.com/arijs/vue-prerender/blob/master/examples/full/prerender.mjs#L258-L348
+
+## CSS Selector Helper
+
+You can create matchers from CSS selector strings with:
+
+```js
+import { getMatcherFromCssSelector } from '@arijs/stream-xml-parser';
+
+const matcher = getMatcherFromCssSelector('div#root > span.note', elAdapter);
+```
+
+Supported selector subset:
+
+- `*`, tag names (`div`), id (`#id`), class (`.class`)
+- attributes with presence (`[name]`) and operators:
+  - equality: `[name="value"]`
+  - not equal: `[name!="value"]`
+  - token contains: `[name~="value"]`
+  - language prefix: `[name|="value"]`
+  - starts with: `[name^="value"]`
+  - ends with: `[name$="value"]`
+  - contains substring: `[name*="value"]`
+- grouped selectors (`a, b`)
+- combinators: descendant (`a b`), direct child (`a > b`), adjacent (`a + b`), subsequent (`a ~ b`)
+
+Unsupported selector rules throw errors (for example pseudo classes and pseudo elements).
+
+### Browser Bundle Note
+
+`css-selector-parser` is configured as an explicit external dependency in the ESM library build.
+When loading the package directly in browser environments, provide a resolver/import map so `css-selector-parser` can be resolved at runtime.
 
 ## FAQ
 
