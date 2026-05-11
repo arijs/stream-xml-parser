@@ -4,13 +4,6 @@ const { describe, it } = require('node:test');
 const assert = require('node:assert/strict');
 const { getParser, printerTransform, elementDefault, Printer, treeWalk, getFullTreePath } = require('../..');
 
-const updateMeObject = {};
-const updateMePrimitive = 'UPDATE_ME';
-
-function getPropertyTypes(obj) {
-	return Object.fromEntries(Object.entries(obj).map(([key, value]) => [key, typeof value]));
-}
-
 function parse(html) {
 	const p = getParser();
 	p.end(html);
@@ -46,6 +39,70 @@ function transformSync(tree, elAdapter, transform) {
 	return printerTransform.sync({
 		tree, elAdapter, transform,
 	});
+}
+
+function addHookTestRule(matcher, mode) {
+	matcher.addRule({
+		matcher: {
+			name: 'p',
+			path: ['html', 'body'],
+			prevSibling: ['h1 <1>'],
+		},
+		callback: 'async' === mode
+			? function(opt) {
+				return opt.callback(null, {
+					children: { text: 'Replaced Matched Prev', noFormat: true },
+					noFormat: true,
+				});
+			}
+			: function() {
+				return {
+					children: { text: 'Sync Replaced Matched Prev', noFormat: true },
+					noFormat: true,
+				};
+			},
+	});
+}
+
+async function captureAsyncMatcherHooks() {
+	const { tree, elAdapter } = parse('<html><body><h1>Title</h1><p>Body</p></body></html>');
+	const matcher = printerTransform.asyncMatcher(elAdapter);
+	let onTestCalls = [];
+	let onTestRuleCalls = [];
+	matcher.onTest = function(opt) {
+		onTestCalls.push(opt);
+	};
+	matcher.onTestRule = function(result, success, rule, opt) {
+		onTestRuleCalls.push({ result, success, rule, opt });
+	};
+	addHookTestRule(matcher, 'async');
+	const result = await transformAsync(tree, elAdapter, matcher.transform);
+	assert.ok(result.includes('Replaced Matched Prev'), 'matched-element prevSibling rule should apply');
+	assert.ok(!result.includes('Body'), 'old content should be replaced');
+	assert.ok(onTestCalls.length > 0, 'onTest should be called at least once');
+	assert.ok(onTestRuleCalls.length > 0, 'onTestRule should be called at least once');
+	return { elAdapter, onTestCalls, onTestRuleCalls };
+}
+
+function captureSyncMatcherHooks() {
+	const { tree, elAdapter } = parse('<html><body><h1>Title</h1><p>Body</p></body></html>');
+	const matcher = printerTransform.syncMatcher(elAdapter);
+	let onTestCalls = [];
+	let onTestRuleCalls = [];
+	matcher.onTest = function(opt) {
+		onTestCalls.push(opt);
+	};
+	matcher.onTestRule = function(result, success, rule, opt) {
+		onTestRuleCalls.push({ result, success, rule, opt });
+	};
+	addHookTestRule(matcher, 'sync');
+	const result = transformSync(tree, elAdapter, matcher.transform);
+	assert.equal(result.errors, null, 'syncMatcher hook setup should not produce errors');
+	assert.ok(result.page.includes('Sync Replaced Matched Prev'), 'matched-element prevSibling rule should apply');
+	assert.ok(!result.page.includes('Body'), 'old content should be replaced');
+	assert.ok(onTestCalls.length > 0, 'onTest should be called at least once');
+	assert.ok(onTestRuleCalls.length > 0, 'onTestRule should be called at least once');
+	return { elAdapter, onTestCalls, onTestRuleCalls };
 }
 
 describe('printerTransform', () => {
@@ -658,29 +715,7 @@ describe('printerTransform', () => {
 
 	describe('asyncMatcher - onTest hooks', () => {
 		async function getOnTestCalls() {
-			const { tree, elAdapter } = parse('<html><body><h1>Title</h1><p>Body</p></body></html>');
-			const am = printerTransform.asyncMatcher(elAdapter);
-			let onTestCalls = [];
-			am.onTest = function(opt) {
-				onTestCalls.push(opt);
-			};
-			am.addRule({
-				matcher: {
-					name: 'p',
-					path: ['html', 'body'],
-					prevSibling: ['h1 <1>'],
-				},
-				callback: function(opt) {
-					return opt.callback(null, {
-						children: { text: 'Replaced Matched Prev', noFormat: true },
-						noFormat: true,
-					});
-				},
-			});
-			const result = await transformAsync(tree, elAdapter, am.transform);
-			assert.ok(result.includes('Replaced Matched Prev'), 'matched-element prevSibling rule should apply');
-			assert.ok(!result.includes('Body'), 'old content should be replaced');
-			assert.ok(onTestCalls.length > 0, 'onTest should be called at least once');
+			const { elAdapter, onTestCalls } = await captureAsyncMatcherHooks();
 			const [htmlCall, bodyCall, h1Call, pCall] = onTestCalls;
 			return { elAdapter, onTestCalls, htmlCall, bodyCall, h1Call, pCall };
 		}
@@ -774,28 +809,7 @@ describe('printerTransform', () => {
 
 	describe('asyncMatcher - onTestRule hooks', () => {
 		async function getOnTestRuleCalls() {
-			const { tree, elAdapter } = parse('<html><body><h1>Title</h1><p>Body</p></body></html>');
-			const am = printerTransform.asyncMatcher(elAdapter);
-			let onTestRuleCalls = [];
-			am.onTestRule = function(result, success, rule, opt) {
-				onTestRuleCalls.push({ result, success, rule, opt });
-			};
-			am.addRule({
-				matcher: {
-					name: 'p',
-					path: ['html', 'body'],
-					prevSibling: ['h1 <1>'],
-				},
-				callback: function(opt) {
-					return opt.callback(null, {
-						children: { text: 'Replaced Matched Prev', noFormat: true },
-						noFormat: true,
-					});
-				},
-			});
-			const result = await transformAsync(tree, elAdapter, am.transform);
-			assert.ok(result.includes('Replaced Matched Prev'), 'matched-element prevSibling rule should apply');
-			assert.ok(onTestRuleCalls.length > 0, 'onTestRule should be called at least once');
+			const { elAdapter, onTestRuleCalls } = await captureAsyncMatcherHooks();
 			const [htmlCall, bodyCall, h1Call, pCall] = onTestRuleCalls;
 			return { elAdapter, onTestRuleCalls, htmlCall, bodyCall, h1Call, pCall };
 		}
@@ -958,6 +972,242 @@ describe('printerTransform', () => {
 	});
 
 	describe('syncMatcher', () => {
+		describe('onTest hooks', () => {
+			function getSyncOnTestCalls() {
+				const { elAdapter, onTestCalls } = captureSyncMatcherHooks();
+				const [htmlCall, bodyCall, h1Call, pCall] = onTestCalls;
+				return { elAdapter, onTestCalls, htmlCall, bodyCall, h1Call, pCall };
+			}
+
+			it('provides node entries with underlying element nodes', () => {
+				const { onTestCalls } = getSyncOnTestCalls();
+				for (const opt of onTestCalls) {
+					assert.ok(opt.node, 'opt.node (nodeEntry) should be present');
+					assert.strictEqual(typeof opt.node, 'object', 'opt.node should be an object');
+					assert.ok(opt.node.node, 'opt.node.node (actual tree element) should be present');
+					assert.strictEqual(typeof opt.node.node, 'object', 'opt.node.node should be an object');
+				}
+			});
+
+			it('provides path arrays with expected ancestry depth', () => {
+				const { onTestCalls, htmlCall, bodyCall, h1Call, pCall } = getSyncOnTestCalls();
+				for (const opt of onTestCalls) {
+					assert.ok(opt.path instanceof Array, 'opt.path should be an array');
+				}
+				assert.strictEqual(htmlCall.path.length, 0, 'root html path should be empty');
+				assert.strictEqual(bodyCall.path.length, 1, 'body path should have one entry');
+				assert.strictEqual(h1Call.path.length, 2, 'h1 path should have two entries');
+				assert.strictEqual(pCall.path.length, 2, 'p path should have two entries');
+			});
+
+			it('provides numeric levels with expected values', () => {
+				const { onTestCalls, htmlCall, bodyCall, h1Call, pCall } = getSyncOnTestCalls();
+				for (const opt of onTestCalls) {
+					assert.ok('number' === typeof opt.level && !isNaN(opt.level) && isFinite(opt.level), 'opt.level should be a number');
+				}
+				assert.strictEqual(htmlCall.level, 0, 'root html level should be 0');
+				assert.strictEqual(bodyCall.level, 1, 'body level should be 1');
+				assert.strictEqual(h1Call.level, 2, 'h1 level should be 2');
+				assert.strictEqual(pCall.level, 2, 'p level should be 2');
+			});
+
+			it('passes through the matcher elAdapter', () => {
+				const { elAdapter, onTestCalls } = getSyncOnTestCalls();
+				for (const opt of onTestCalls) {
+					assert.strictEqual(opt.elAdapter, elAdapter, 'opt.elAdapter should be the elAdapter passed to syncMatcher');
+				}
+			});
+
+			it('provides a Printer instance', () => {
+				const { onTestCalls } = getSyncOnTestCalls();
+				for (const opt of onTestCalls) {
+					assert.ok(opt.printer instanceof Printer, 'opt.printer should be an instance of Printer');
+				}
+			});
+
+			it('does not provide a callback function', () => {
+				const { onTestCalls } = getSyncOnTestCalls();
+				for (const opt of onTestCalls) {
+					assert.strictEqual(opt.callback, undefined, 'opt.callback should be undefined in syncMatcher');
+				}
+			});
+
+			it('provides parentNode metadata for root and non-root nodes', () => {
+				const { onTestCalls, htmlCall } = getSyncOnTestCalls();
+				assert.strictEqual(typeof htmlCall.node.parentNode, 'object', 'root parentNode should have object type');
+				assert.strictEqual(htmlCall.node.parentNode, null, 'root parentNode should be null');
+				for (const opt of onTestCalls.slice(1)) {
+					assert.ok(opt.node.parentNode, 'non-root node parentNode should be present');
+				}
+			});
+
+			it('provides childIndex metadata for sibling position', () => {
+				const { htmlCall, bodyCall, h1Call, pCall } = getSyncOnTestCalls();
+				assert.strictEqual(htmlCall.node.childIndex, 0, 'root html childIndex should be 0');
+				assert.strictEqual(bodyCall.node.childIndex, 0, 'body should be the first child of html');
+				assert.strictEqual(h1Call.node.childIndex, 0, 'h1 should be the first child of body');
+				assert.strictEqual(pCall.node.childIndex, 1, 'p should be the second child of body');
+			});
+
+			it('provides childCount metadata for sibling totals', () => {
+				const { htmlCall, bodyCall, h1Call, pCall } = getSyncOnTestCalls();
+				assert.strictEqual(htmlCall.node.childCount, 1, 'root html childCount should be 1');
+				assert.strictEqual(bodyCall.node.childCount, 1, 'html should have one child');
+				assert.strictEqual(h1Call.node.childCount, 2, 'body should have two children for h1');
+				assert.strictEqual(pCall.node.childCount, 2, 'body should have two children for p');
+			});
+
+			it('visits the expected element sequence', () => {
+				const { elAdapter, htmlCall, bodyCall, h1Call, pCall } = getSyncOnTestCalls();
+				assert.strictEqual(elAdapter.nameGet(htmlCall.node.node), 'html', 'first onTest call should be html');
+				assert.strictEqual(elAdapter.nameGet(bodyCall.node.node), 'body', 'second onTest call should be body');
+				assert.strictEqual(elAdapter.nameGet(h1Call.node.node), 'h1', 'third onTest call should be h1');
+				assert.strictEqual(elAdapter.nameGet(pCall.node.node), 'p', 'fourth onTest call should be p');
+			});
+		});
+
+		describe('onTestRule hooks', () => {
+			function getSyncOnTestRuleCalls() {
+				const { elAdapter, onTestRuleCalls } = captureSyncMatcherHooks();
+				const [htmlCall, bodyCall, h1Call, pCall] = onTestRuleCalls;
+				return { elAdapter, onTestRuleCalls, htmlCall, bodyCall, h1Call, pCall };
+			}
+
+			describe('result payload', () => {
+				it('captures the html result fields', () => {
+					const { htmlCall } = getSyncOnTestRuleCalls();
+					assert.ok('result' in htmlCall, 'html call should have result');
+					assert.strictEqual(htmlCall.result.success, false, 'html result.success should be false');
+					assert.strictEqual(typeof htmlCall.result.name, 'object', 'html result.name should be an object');
+					assert.strictEqual(htmlCall.result.name.yes, 0, 'html result.name.yes should be 0');
+					assert.strictEqual(htmlCall.result.name.not, 1, 'html result.name.not should be 1');
+					assert.strictEqual(htmlCall.result.name.success, false, 'html result.name.success should be false');
+					assert.strictEqual(htmlCall.result.attr, undefined, 'html result.attr should be undefined');
+					assert.strictEqual(htmlCall.result.path, undefined, 'html result.path should be undefined');
+					assert.strictEqual(htmlCall.result.nextSibling, undefined, 'html result.nextSibling should be undefined');
+					assert.strictEqual(htmlCall.result.prevSibling, undefined, 'html result.prevSibling should be undefined');
+				});
+
+				it('captures the body result fields', () => {
+					const { bodyCall } = getSyncOnTestRuleCalls();
+					assert.ok('result' in bodyCall, 'body call should have result');
+					assert.strictEqual(bodyCall.result.success, false, 'body result.success should be false');
+					assert.strictEqual(typeof bodyCall.result.name, 'object', 'body result.name should be an object');
+					assert.strictEqual(bodyCall.result.name.yes, 0, 'body result.name.yes should be 0');
+					assert.strictEqual(bodyCall.result.name.not, 1, 'body result.name.not should be 1');
+					assert.strictEqual(bodyCall.result.name.success, false, 'body result.name.success should be false');
+					assert.strictEqual(bodyCall.result.attr, undefined, 'body result.attr should be undefined');
+					assert.strictEqual(bodyCall.result.path, undefined, 'body result.path should be undefined');
+					assert.strictEqual(bodyCall.result.nextSibling, undefined, 'body result.nextSibling should be undefined');
+					assert.strictEqual(bodyCall.result.prevSibling, undefined, 'body result.prevSibling should be undefined');
+				});
+
+				it('captures the h1 result fields', () => {
+					const { h1Call } = getSyncOnTestRuleCalls();
+					assert.ok('result' in h1Call, 'h1 call should have result');
+					assert.strictEqual(h1Call.result.success, false, 'h1 result.success should be false');
+					assert.strictEqual(typeof h1Call.result.name, 'object', 'h1 result.name should be an object');
+					assert.strictEqual(h1Call.result.name.yes, 0, 'h1 result.name.yes should be 0');
+					assert.strictEqual(h1Call.result.name.not, 1, 'h1 result.name.not should be 1');
+					assert.strictEqual(h1Call.result.name.success, false, 'h1 result.name.success should be false');
+					assert.strictEqual(h1Call.result.attr, undefined, 'h1 result.attr should be undefined');
+					assert.strictEqual(h1Call.result.path, undefined, 'h1 result.path should be undefined');
+					assert.strictEqual(h1Call.result.nextSibling, undefined, 'h1 result.nextSibling should be undefined');
+					assert.strictEqual(h1Call.result.prevSibling, undefined, 'h1 result.prevSibling should be undefined');
+				});
+
+				it('captures the p result fields', () => {
+					const { pCall } = getSyncOnTestRuleCalls();
+					assert.ok('result' in pCall, 'p call should have result');
+					assert.strictEqual(pCall.result.success, true, 'p result.success should be true');
+					assert.strictEqual(typeof pCall.result.name, 'object', 'p result.name should be an object');
+					assert.strictEqual(pCall.result.name.yes, 1, 'p result.name.yes should be 1');
+					assert.strictEqual(pCall.result.name.not, 0, 'p result.name.not should be 0');
+					assert.strictEqual(pCall.result.name.success, true, 'p result.name.success should be true');
+					assert.strictEqual(typeof pCall.result.attr, 'object', 'p result.attr should be an object');
+					assert.strictEqual(typeof pCall.result.attr.rules, 'object', 'p result.attr.rules should be an object');
+					assert.strictEqual(typeof pCall.result.attr.count, 'object', 'p result.attr.count should be an object');
+					assert.strictEqual(pCall.result.attr.nomatch, 0, 'p result.attr.nomatch should be 0');
+					assert.strictEqual(pCall.result.attr.success, true, 'p result.attr.success should be true');
+					assert.strictEqual(typeof pCall.result.path, 'object', 'p result.path should be an object');
+					assert.strictEqual(pCall.result.path.yes, 1, 'p result.path.yes should be 1');
+					assert.strictEqual(pCall.result.path.not, 0, 'p result.path.not should be 0');
+					assert.strictEqual(pCall.result.path.success, true, 'p result.path.success should be true');
+					assert.strictEqual(pCall.result.nextSibling, undefined, 'p result.nextSibling should be undefined');
+					assert.strictEqual(typeof pCall.result.prevSibling, 'object', 'p result.prevSibling should be an object');
+					assert.strictEqual(pCall.result.prevSibling.success, true, 'p result.prevSibling.success should be true');
+					assert.strictEqual(pCall.result.prevSibling.failedCount, 0, 'p result.prevSibling.failedCount should be 0');
+					assert.strictEqual(pCall.result.prevSibling.attemptsCount, 1, 'p result.prevSibling.attemptsCount should be 1');
+					assert.strictEqual(typeof pCall.result.prevSibling.active, 'object', 'p result.prevSibling.active should be an object');
+					assert.strictEqual(typeof pCall.result.prevSibling.failed, 'object', 'p result.prevSibling.failed should be an object');
+					assert.strictEqual(typeof pCall.result.prevSibling.attempts, 'object', 'p result.prevSibling.attempts should be an object');
+					assert.strictEqual(typeof pCall.result.prevSibling.active.testList, 'object', 'p result.prevSibling.active.testList should be an object');
+					assert.strictEqual(typeof pCall.result.prevSibling.active.itemList, 'object', 'p result.prevSibling.active.itemList should be an object');
+					assert.strictEqual(typeof pCall.result.prevSibling.active.matches, 'object', 'p result.prevSibling.active.matches should be an object');
+					assert.strictEqual(typeof pCall.result.prevSibling.active.nextGroup, 'object', 'p result.prevSibling.active.nextGroup should be an object');
+					assert.strictEqual(pCall.result.prevSibling.active.forked, false, 'p result.prevSibling.active.forked should be false');
+				});
+			});
+
+			it('provides a boolean success flag', () => {
+				const { onTestRuleCalls, htmlCall, bodyCall, h1Call, pCall } = getSyncOnTestRuleCalls();
+				for (const call of onTestRuleCalls) {
+					assert.strictEqual(typeof call.success, 'boolean', 'success should be boolean');
+				}
+				assert.strictEqual(htmlCall.success, false, 'html should not match the p rule');
+				assert.strictEqual(bodyCall.success, false, 'body should not match the p rule');
+				assert.strictEqual(h1Call.success, false, 'h1 should not match the p rule');
+				assert.strictEqual(pCall.success, true, 'p should match the p rule');
+			});
+
+			it('provides the matched rule and matcher', () => {
+				const { onTestRuleCalls } = getSyncOnTestRuleCalls();
+				for (const call of onTestRuleCalls) {
+					assert.ok(call.rule, 'call.rule should be present');
+					assert.ok(call.rule.matcher, 'call.rule.matcher should be present');
+				}
+			});
+
+			it('provides the onTest opt object with node entries', () => {
+				const { onTestRuleCalls } = getSyncOnTestRuleCalls();
+				for (const call of onTestRuleCalls) {
+					assert.ok(call.opt, 'call.opt should be present');
+					assert.ok(call.opt.node, 'call.opt.node should be present');
+					assert.strictEqual(typeof call.opt.node, 'object', 'call.opt.node should be an object');
+					assert.ok(call.opt.node.node, 'call.opt.node.node should be present');
+				}
+			});
+
+			it('passes through the matcher elAdapter', () => {
+				const { elAdapter, onTestRuleCalls } = getSyncOnTestRuleCalls();
+				for (const call of onTestRuleCalls) {
+					assert.strictEqual(call.opt.elAdapter, elAdapter, 'call.opt.elAdapter should be the elAdapter passed to syncMatcher');
+				}
+			});
+
+			it('provides a Printer instance on opt', () => {
+				const { onTestRuleCalls } = getSyncOnTestRuleCalls();
+				for (const call of onTestRuleCalls) {
+					assert.ok(call.opt.printer instanceof Printer, 'call.opt.printer should be an instance of Printer');
+				}
+			});
+
+			it('does not provide a callback function on opt', () => {
+				const { onTestRuleCalls } = getSyncOnTestRuleCalls();
+				for (const call of onTestRuleCalls) {
+					assert.strictEqual(call.opt.callback, undefined, 'call.opt.callback should be undefined in syncMatcher');
+				}
+			});
+
+			it('visits the expected element sequence through opt.node', () => {
+				const { elAdapter, htmlCall, bodyCall, h1Call, pCall } = getSyncOnTestRuleCalls();
+				assert.strictEqual(elAdapter.nameGet(htmlCall.opt.node.node), 'html', 'first onTestRule call should be html');
+				assert.strictEqual(elAdapter.nameGet(bodyCall.opt.node.node), 'body', 'second onTestRule call should be body');
+				assert.strictEqual(elAdapter.nameGet(h1Call.opt.node.node), 'h1', 'third onTestRule call should be h1');
+				assert.strictEqual(elAdapter.nameGet(pCall.opt.node.node), 'p', 'fourth onTestRule call should be p');
+			});
+		});
+
 		it('replaces children with a text string', () => {
 			const { tree, elAdapter } = parse('<html><head><title>Old Title</title></head><body></body></html>');
 			const sm = printerTransform.syncMatcher(elAdapter);
