@@ -1,6 +1,6 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { getParser, printerTransform, elementDefault, Printer, treeWalk, getFullTreePath } from '../../src/index.mjs';
+import { getParser, printerTransform, elementDefault, TreeMatcher, Printer, treeWalk, getFullTreePath } from '../../src/index.mjs';
 
 function parse(html) {
 	const p = getParser();
@@ -1381,6 +1381,43 @@ describe('printerTransform', () => {
 			assert.ok(result.page.includes('<div>'), 'wrapper element should remain');
 			assert.ok(!result.page.includes('<span>'), 'children should be removed');
 			assert.ok(!result.page.includes('Remove Child'), 'children text should be removed');
+		});
+
+		it('removes multiple elements from a single rule', () => {
+			const { tree, elAdapter } = parse('<html><head><title>Old Title</title></head><body><a><a1></a1></a><b><b1></b1></b><c><c1></c1></c></body></html>');
+			const sm = printerTransform.syncMatcher(elAdapter);
+			sm.addRule({
+				matcher: TreeMatcher.fromArray([
+					{ name: 'title', path: ['html', 'head'] },
+					{ name: 'a1', path: ['html', 'body', 'a'] },
+					{ name: 'c1', path: ['html', 'body', 'c'] },
+				], elAdapter),
+				callback: function() {
+					return {
+						noFormat: true,
+						full: { noFormat: true },
+					};
+				},
+			});
+			const result = printerTransform.sync({
+				tree, elAdapter, transform: sm.transform,
+			});
+			// transformSync(tree, elAdapter, sm.transform);
+			assert.equal(result.errors, null);
+			assert.ok(!result.page.includes('<title>'), 'Title open tag should be removed');
+			assert.ok(!result.page.includes('</title>'), 'Title close tag should be removed');
+			assert.ok(!result.page.includes('Old Title'), 'Old Title should be removed');
+			assert.ok(!result.page.includes('<a1>'), '<a1> open tag should be removed');
+			assert.ok(!result.page.includes('</a1>'), '<a1> close tag should be removed');
+			assert.ok(!result.page.includes('<c1>'), '<c1> open tag should be removed');
+			assert.ok(!result.page.includes('</c1>'), '<c1> close tag should be removed');
+			assert.ok(result.page.includes('<a>'), '<a> open tag should remain');
+			assert.ok(result.page.includes('</a>'), '</a> close tag should remain');
+			assert.ok(result.page.includes('<b>'), '<b> open tag should remain');
+			assert.ok(result.page.includes('<b1></b1>'), '<b1> tag should remain');
+			assert.ok(result.page.includes('</b>'), '</b> close tag should remain');
+			assert.ok(result.page.includes('<c>'), '<c> open tag should remain');
+			assert.ok(result.page.includes('</c>'), '</c> close tag should remain');
 		});
 	});
 });
