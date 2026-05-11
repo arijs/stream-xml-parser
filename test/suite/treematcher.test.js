@@ -785,7 +785,6 @@ describe('TreeMatcher', () => {
 			tm.name('span');
 			tm.prevSibling('div');
 			const result = tm.testAll(nodeEntry, path);
-			console.log(`>>> matches a previous sibling by name result:`, result);
 			assert.equal(result.success, true);
 		});
 

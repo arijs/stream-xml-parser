@@ -781,7 +781,7 @@ TreeMatcher.prototype = {
 						ancestorsCount &&
 						(null == parentNode || null == childIndex)
 					) {
-						console.error(`>>> testAll: parentNode or childIndex not found`, {testNode, testPath, opt, rulesNextSibling, rulesPrevSibling, parentNode, childIndex});
+						// console.error(`>>> testAll: parentNode or childIndex not found`, {testNode, testPath, opt, rulesNextSibling, rulesPrevSibling, parentNode, childIndex});
 						throw new Error('Sibling tests require path with parent node and child index');
 					}
 
