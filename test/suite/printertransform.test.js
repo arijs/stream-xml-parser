@@ -2,7 +2,7 @@
 
 const { describe, it } = require('node:test');
 const assert = require('node:assert/strict');
-const { getParser, printerTransform, elementDefault, Printer, treeWalk } = require('../..');
+const { getParser, printerTransform, elementDefault, Printer, treeWalk, getFullTreePath } = require('../..');
 
 function parse(html) {
 	const p = getParser();
@@ -10,18 +10,14 @@ function parse(html) {
 	return p.getResult();
 }
 
-function getNodeAndPath(root, targetName, elAdapter) {
-	let targetNode = null;
-	let targetPath = null;
-	treeWalk(root, elAdapter, {
-		onNode: function(node, path) {
-			if (elAdapter.nameGet(node) === targetName && !targetNode) {
-				targetNode = node;
-				targetPath = path.slice();
-			}
-		},
-	}, []);
-	return { node: targetNode, path: targetPath };
+function nodeAndPath(root, targetName, elAdapter) {
+	const { node: nodeEntry, path: ancestorPath } = getFullTreePath(root, ({ node: n }) => elAdapter.nameGet(n) === targetName, elAdapter);
+	if (!nodeEntry) {
+		return { node: null, path: null, fullPath: null };
+	}
+	const node = nodeEntry.node;
+	const fullPath = [...ancestorPath, nodeEntry];
+	return { node, nodeEntry, path: ancestorPath, fullPath };
 }
 
 /**
@@ -477,7 +473,7 @@ describe('printerTransform', () => {
 	describe('asyncMatcher - sibling selectors', () => {
 		it('matches prevSibling adjacent rule and transforms node', async () => {
 			const { tree, elAdapter } = parse('<html><head></head><body><p>Body</p></body></html>');
-			const { node, path } = getNodeAndPath(tree[0], 'p', elAdapter);
+		const { nodeEntry, path } = nodeAndPath(tree[0], 'p', elAdapter);
 			const am = printerTransform.asyncMatcher(elAdapter);
 			am.addRule({
 				matcher: {
@@ -493,7 +489,7 @@ describe('printerTransform', () => {
 			});
 			const rep = await new Promise((resolve, reject) => {
 				am.transform({
-					node,
+					node: nodeEntry,
 					path,
 					level: 0,
 					elAdapter,
@@ -508,7 +504,7 @@ describe('printerTransform', () => {
 
 		it('matches next sibling wildcard-gap rule and transforms node', async () => {
 			const { tree, elAdapter } = parse('<html><body><p>Body</p></body><section></section><aside></aside></html>');
-			const { node, path } = getNodeAndPath(tree[0], 'p', elAdapter);
+		const { nodeEntry, path } = nodeAndPath(tree[0], 'p', elAdapter);
 			const am = printerTransform.asyncMatcher(elAdapter);
 			am.addRule({
 				matcher: {
@@ -524,7 +520,7 @@ describe('printerTransform', () => {
 			});
 			const rep = await new Promise((resolve, reject) => {
 				am.transform({
-					node,
+					node: nodeEntry,
 					path,
 					level: 0,
 					elAdapter,
@@ -539,7 +535,7 @@ describe('printerTransform', () => {
 
 		it('does not apply when sibling rule does not match', async () => {
 			const { tree, elAdapter } = parse('<html><body><p>Body</p></body><section></section></html>');
-			const { node, path } = getNodeAndPath(tree[0], 'p', elAdapter);
+		const { nodeEntry, path } = nodeAndPath(tree[0], 'p', elAdapter);
 			const am = printerTransform.asyncMatcher(elAdapter);
 			am.addRule({
 				matcher: {
@@ -555,7 +551,7 @@ describe('printerTransform', () => {
 			});
 			const rep = await new Promise((resolve, reject) => {
 				am.transform({
-					node,
+					node: nodeEntry,
 					path,
 					level: 0,
 					elAdapter,
@@ -653,6 +649,84 @@ describe('printerTransform', () => {
 		});
 	});
 
+	describe('asyncMatcher - onTest/onTestRule hooks', () => {
+		it('onTest is called with correct opt properties for each node', async () => {
+			const { tree, elAdapter } = parse('<html><body><h1>Title</h1><p>Body</p></body></html>');
+			const am = printerTransform.asyncMatcher(elAdapter);
+			let onTestCalls = [];
+			am.onTest = function(opt) {
+				onTestCalls.push(opt);
+				assert.ok(opt.node, 'opt.node (nodeEntry) should be defined');
+				assert.ok(opt.node.node, 'opt.node.node (actual tree element) should be defined');
+				assert.ok(opt.path, 'opt.path should be defined');
+				assert.ok(opt.level !== undefined, 'opt.level should be defined');
+				assert.ok(opt.elAdapter, 'opt.elAdapter should be defined');
+				assert.ok(opt.printer, 'opt.printer should be defined');
+				assert.ok(opt.callback, 'opt.callback should be defined in the async matcher');
+			};
+			am.addRule({
+				matcher: {
+					name: 'p',
+					path: ['html', 'body'],
+					prevSibling: ['h1 <1>'],
+				},
+				callback: function(opt) {
+					return opt.callback(null, {
+						children: { text: 'Replaced Matched Prev', noFormat: true },
+						noFormat: true,
+					});
+				},
+			});
+			const result = await transformAsync(tree, elAdapter, am.transform);
+			assert.ok(result.includes('Replaced Matched Prev'), 'matched-element prevSibling rule should apply');
+			assert.ok(!result.includes('Body'), 'old content should be replaced');
+			assert.ok(onTestCalls.length > 0, 'onTest should be called at least once');
+			for (const opt of onTestCalls) {
+				assert.ok(opt.node, 'opt.node should be present');
+				assert.ok(opt.path, 'opt.path should be present');
+				assert.ok(opt.level !== undefined, 'opt.level should be present');
+				assert.ok(opt.elAdapter, 'opt.elAdapter should be present');
+				assert.ok(opt.printer, 'opt.printer should be present');
+				assert.ok(opt.callback, 'opt.callback should be present');
+			}
+		});
+
+		it('onTestRule is called with correct arguments and values', async () => {
+			const { tree, elAdapter } = parse('<html><body><h1>Title</h1><p>Body</p></body></html>');
+			const am = printerTransform.asyncMatcher(elAdapter);
+			let onTestRuleCalls = [];
+			am.onTestRule = function(result, success, rule, opt) {
+				onTestRuleCalls.push({ result, success, rule, opt });
+				// result: output of matcher.testAll
+				assert.ok(typeof success === 'boolean', 'success should be boolean');
+				assert.ok(rule && rule.matcher, 'rule should be present and have matcher');
+				assert.ok(opt && opt.node, 'opt and opt.node should be present');
+			};
+			am.addRule({
+				matcher: {
+					name: 'p',
+					path: ['html', 'body'],
+					prevSibling: ['h1 <1>'],
+				},
+				callback: function(opt) {
+					return opt.callback(null, {
+						children: { text: 'Replaced Matched Prev', noFormat: true },
+						noFormat: true,
+					});
+				},
+			});
+			const result = await transformAsync(tree, elAdapter, am.transform);
+			assert.ok(result.includes('Replaced Matched Prev'), 'matched-element prevSibling rule should apply');
+			assert.ok(onTestRuleCalls.length > 0, 'onTestRule should be called at least once');
+			for (const call of onTestRuleCalls) {
+				assert.ok('success' in call, 'call should have success');
+				assert.ok('result' in call, 'call should have result');
+				assert.ok(call.rule && call.rule.matcher, 'call.rule should be present and have matcher');
+				assert.ok(call.opt && call.opt.node, 'call.opt and call.opt.node should be present');
+			}
+		});
+	});
+
 	describe('sync', () => {
 		it('returns page output with no errors for pass-through transforms', () => {
 			const { tree, elAdapter } = parse('<html><body><p>Hello</p></body></html>');
@@ -665,7 +739,8 @@ describe('printerTransform', () => {
 		it('collects thrown transform errors', () => {
 			const { tree, elAdapter } = parse('<html><body><p>Hello</p></body></html>');
 			const result = transformSync(tree, elAdapter, function(opt) {
-				if (opt.node && opt.elAdapter.nameGet(opt.node) === 'p') {
+				var node = opt.node && opt.node.node;
+				if (node && opt.elAdapter.nameGet(node) === 'p') {
 					throw new Error('sync transform failure');
 				}
 			});

@@ -129,15 +129,15 @@ function prepareContainerRep(rep, node, level, printer) {
 		printer.printTagSpaceAfterClose(level, st, node);
 }
 
-function getChildIndex(node, path, elAdapter) {
-	var parent = path && path[path.length - 1];
-	if (!parent) return undefined;
-	var children = elAdapter.childrenGet(parent) || [];
-	for (var i = 0; i < children.length; i++) {
-		if (children[i] === node) return i;
-	}
-	return undefined;
-}
+// function getChildIndex(node, path, elAdapter) {
+// 	var parent = path && path[path.length - 1];
+// 	if (!parent) return undefined;
+// 	var children = elAdapter.childrenGet(parent) || [];
+// 	for (var i = 0; i < children.length; i++) {
+// 		if (children[i] === node) return i;
+// 	}
+// 	return undefined;
+// }
 
 export function async({tree, elAdapter, transform, callback, level, printer}) {
 	var repErrors = [];
@@ -154,14 +154,14 @@ export function async({tree, elAdapter, transform, callback, level, printer}) {
 		if (!repErrors.length) repErrors = null;
 		callback(repErrors, page);
 	}
-	function customPrintTag(node, level, path, printTagAsync, printer, cbTag) {
+	function customPrintTag(nodeEntry, level, path, printTagAsync, printer, cbTag) {
+		var node = nodeEntry.node;
 		return transform({
-			node,
+			node: nodeEntry,
 			path,
 			level,
 			elAdapter,
 			printer,
-			childIndex: getChildIndex(node, path, elAdapter),
 			callback: cbTransform,
 		});
 		function cbTransform(err, rep) {
@@ -170,7 +170,7 @@ export function async({tree, elAdapter, transform, callback, level, printer}) {
 				if (hasContainerRep(rep)) {
 					prepareContainerRep(rep, node, level, printer);
 					if (null == rep.children) {
-						return printer.printTagChildrenAsync(node, level+1, path.concat([node]), function(errPrint, nodeChildren) {
+						return printer.printTagChildrenAsync(node, level+1, path.concat([nodeEntry]), function(errPrint, nodeChildren) {
 							addErrors(errPrint);
 							rep.childrenSrc = nodeChildren;
 							return withContainer(rep, level, path, elAdapter, printer, addErrors, cbTag);
@@ -181,7 +181,7 @@ export function async({tree, elAdapter, transform, callback, level, printer}) {
 				} else if (
 					null == rep.full
 				) {
-					return printTagAsync.call(printer, node, level, path, function (errPrint, nodeFull) {
+					return printTagAsync.call(printer, nodeEntry, level, path, function (errPrint, nodeFull) {
 						addErrors(errPrint);
 						rep.fullSrc = nodeFull;
 						return withContainer(rep, level, path, elAdapter, printer, addErrors, cbTag);
@@ -191,7 +191,7 @@ export function async({tree, elAdapter, transform, callback, level, printer}) {
 			} else if (err) {
 				return cbTag(err, '');
 			} else {
-				return printTagAsync.call(printer, node, level, path, cbTag);
+				return printTagAsync.call(printer, nodeEntry, level, path, cbTag);
 			}
 		}
 	}
@@ -209,16 +209,16 @@ export function sync({tree, elAdapter, transform, level, printer}) {
 			repErrors.push(err);
 		}
 	}
-	function customPrintTag(node, level, path, printTag, printer) {
+	function customPrintTag(nodeEntry, level, path, printTag, printer) {
+		var node = nodeEntry.node;
 		var rep;
 		try {
 			rep = transform({
-				node,
+				node: nodeEntry,
 				path,
 				level,
 				elAdapter,
 				printer,
-				childIndex: getChildIndex(node, path, elAdapter),
 			});
 		} catch (err) {
 			addErrors(err);
@@ -228,14 +228,14 @@ export function sync({tree, elAdapter, transform, level, printer}) {
 			if (hasContainerRep(rep)) {
 				prepareContainerRep(rep, node, level, printer);
 				if (null == rep.children) {
-					rep.childrenSrc = printer.printTagChildren(node, level+1, path.concat([node]));
+					rep.childrenSrc = printer.printTagChildren(node, level+1, path.concat([nodeEntry]));
 				}
 			} else if (null == rep.full) {
-				rep.fullSrc = printTag.call(printer, node, level, path);
+				rep.fullSrc = printTag.call(printer, nodeEntry, level, path);
 			}
 			return withContainer(rep, level, path, elAdapter, printer, addErrors);
 		}
-		return printTag.call(printer, node, level, path);
+		return printTag.call(printer, nodeEntry, level, path);
 	}
 }
 
@@ -257,13 +257,13 @@ function createMatcher(elAdapter, transform) {
 		getRule: function(opt) {
 			var node = opt.node;
 			var path = opt.path;
-			var childIndex = opt.childIndex;
+			// var childIndex = opt.childIndex;
 			var rc = rules.length;
 			api.onTest(opt);
 			for (var i = 0; i < rc; i++) {
 				var rule = rules[i];
 				var isSuccess = rule.isSuccess || api.isSuccess;
-				var result = rule.matcher.testAll(node, path, childIndex);
+				var result = rule.matcher.testAll(node, path);
 				var success = isSuccess(result);
 				api.onTestRule(result, success, rule, opt);
 				if (success) {
