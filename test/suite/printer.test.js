@@ -1,8 +1,6 @@
-'use strict';
-
-const { describe, it } = require('node:test');
-const assert = require('node:assert/strict');
-const { getParser, Printer, elementDefault, htmlVoidTagMap } = require('../..');
+import { describe, it } from 'node:test';
+import assert from 'node:assert/strict';
+import { getParser, Printer, elementDefault, htmlVoidTagMap } from '../../src/index.mjs';
 
 function parseAndPrint(html, printerOpts) {
 	const p = getParser();

@@ -1,9 +1,7 @@
-'use strict';
-
-const { describe, it } = require('node:test');
-const assert = require('node:assert/strict');
-const { getParser, TreeMatcher, treeWalk, getMatcherFromCssSelector, getFullTreePath } = require('../..');
-const { get } = require('node:http');
+import { describe, it } from 'node:test';
+import assert from 'node:assert/strict';
+import { getParser, TreeMatcher, treeWalk, getMatcherFromCssSelector, getFullTreePath } from '../../src/index.mjs';
+import { get } from 'node:http';
 function nodeAndPath(root, targetName, elAdapter) {
 	const { node: nodeEntry, path: ancestorPath } = getFullTreePath(root, ({ node: n }) => elAdapter.nameGet(n) === targetName, elAdapter);
 	if (!nodeEntry) {

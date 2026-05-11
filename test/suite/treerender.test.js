@@ -1,8 +1,6 @@
-'use strict';
-
-const { describe, it } = require('node:test');
-const assert = require('node:assert/strict');
-const { getParser, treeRender, elementDefault } = require('../..');
+import { describe, it } from 'node:test';
+import assert from 'node:assert/strict';
+import { getParser, treeRender, elementDefault } from '../../src/index.mjs';
 
 function parse(xml, opts) {
 	const p = getParser({ tagVoidMap: {}, ...opts });

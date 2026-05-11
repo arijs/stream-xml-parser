@@ -1,8 +1,6 @@
-'use strict';
-
-const { describe, it } = require('node:test');
-const assert = require('node:assert/strict');
-const { XMLParser } = require('../..');
+import { describe, it } from 'node:test';
+import assert from 'node:assert/strict';
+import { XMLParser } from '../../src/index.mjs';
 
 function collectEvents(xml) {
 	const events = [];

@@ -1,6 +1,6 @@
-var testList = require('..').testList;
+import { testList } from '../src/index.mjs';
 
-module.exports = function testTestList() {
+export default function testTestList() {
 	var testEven = {
 		test: function(x) {
 			return 0 === x % 2;
@@ -105,4 +105,4 @@ module.exports = function testTestList() {
 			console.log(i, list[i]);
 		}
 	}
-};
+}

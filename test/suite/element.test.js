@@ -1,8 +1,6 @@
-'use strict';
-
-const { describe, it } = require('node:test');
-const assert = require('node:assert/strict');
-const { elementDefault } = require('../..');
+import { describe, it } from 'node:test';
+import assert from 'node:assert/strict';
+import { elementDefault } from '../../src/index.mjs';
 
 describe('elementDefault', () => {
 	describe('node creation', () => {

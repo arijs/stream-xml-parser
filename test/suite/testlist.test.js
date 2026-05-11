@@ -1,8 +1,6 @@
-'use strict';
-
-const { describe, it } = require('node:test');
-const assert = require('node:assert/strict');
-const { testList } = require('../..');
+import { describe, it } from 'node:test';
+import assert from 'node:assert/strict';
+import { testList } from '../../src/index.mjs';
 
 function makeTest(testFn, min, max, greedy) {
 	return { test: testFn, min, max, greedy };

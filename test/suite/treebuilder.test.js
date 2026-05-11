@@ -1,8 +1,6 @@
-'use strict';
-
-const { describe, it } = require('node:test');
-const assert = require('node:assert/strict');
-const { XMLParser, TreeBuilder, elementDefault, htmlVoidTagMap } = require('../..');
+import { describe, it } from 'node:test';
+import assert from 'node:assert/strict';
+import { XMLParser, TreeBuilder, elementDefault, htmlVoidTagMap } from '../../src/index.mjs';
 
 function buildTree(xml, opts) {
 	const el = opts && opts.element ? opts.element : elementDefault();

@@ -1,8 +1,6 @@
-'use strict';
-
-const { describe, it } = require('node:test');
-const assert = require('node:assert/strict');
-const { getParser, treeWalk, getFullTreePath } = require('../..');
+import { describe, it } from 'node:test';
+import assert from 'node:assert/strict';
+import { getParser, treeWalk, getFullTreePath } from '../../src/index.mjs';
 
 function parse(html) {
 	const p = getParser();
