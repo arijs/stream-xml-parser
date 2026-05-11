@@ -565,8 +565,8 @@ Unsupported selector rules throw errors (for example pseudo classes and pseudo e
 
 ### Browser Bundle Note
 
-`css-selector-parser` is configured as an explicit external dependency in Rollup builds.
-For browser `iife`/`amd` outputs, make sure a compatible global `cssSelectorParser` is available before loading this package.
+`css-selector-parser` is configured as an explicit external dependency in the ESM library build.
+When loading the package directly in browser environments, provide a resolver/import map so `css-selector-parser` can be resolved at runtime.
 
 ## FAQ
 
