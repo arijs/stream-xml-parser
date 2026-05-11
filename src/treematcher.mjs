@@ -762,7 +762,7 @@ TreeMatcher.prototype = {
 		});
 	},
 	testAll: function(testNode, testPath, opt) {
-		var name, attr, path, nextSibling, prevSibling, success = false;
+		var name, attr, path, nextSibling, prevSibling, subMatchers, success = false;
 		name = this.testNodeName(testNode.node, opt && opt.methodName);
 		if (name.success) {
 			attr = this.testNodeAttrs(testNode.node, opt && opt.methodAttrs);
@@ -789,7 +789,7 @@ TreeMatcher.prototype = {
 					if (rulesNextSibling) {
 						nextSibling = this.testNodeSiblings(parentNode, childIndex, 'next', opt && opt.methodSiblings);
 						if (!nextSibling.success) {
-							return { success: false, name, attr, path, nextSibling, prevSibling };
+							return { success: false, name, attr, path, nextSibling, prevSibling, subMatchers };
 						}
 					}
 
@@ -797,15 +797,20 @@ TreeMatcher.prototype = {
 					if (rulesPrevSibling) {
 						prevSibling = this.testNodeSiblings(parentNode, childIndex, 'prev', opt && opt.methodSiblings);
 						if (!prevSibling.success) {
-							return { success: false, name, attr, path, nextSibling, prevSibling };
+							return { success: false, name, attr, path, nextSibling, prevSibling, subMatchers };
 						}
+					}
+
+					subMatchers = this.testNodeSub(testNode, testPath, opt && opt.methodSub);
+					if (!subMatchers.success) {
+						return { success: false, name, attr, path, nextSibling, prevSibling, subMatchers };
 					}
 
 					success = true;
 				}
 			}
 		}
-		return { success, name, attr, path, nextSibling, prevSibling };
+		return { success, name, attr, path, nextSibling, prevSibling, subMatchers };
 	},
 	sub: function(testSubSrc, opt) {
 		// opt = {...defaultOpts.name, source: testName, ...opt};

@@ -636,6 +636,8 @@ describe('TreeMatcher', () => {
 			], elAdapter);
 			const result = tm.testNodeSub(nodeEntry, ancestorPath);
 			assert.equal(result.success, true);
+			const resultAll = tm.testAll(nodeEntry, ancestorPath);
+			assert.equal(resultAll.success, true);
 		});
 
 		it('fails if no sub-matcher succeeds', () => {
@@ -646,6 +648,8 @@ describe('TreeMatcher', () => {
 			], elAdapter);
 			const result = tm.testNodeSub(nodeEntry, ancestorPath);
 			assert.equal(result.success, false);
+			const resultAll = tm.testAll(nodeEntry, ancestorPath);
+			assert.equal(resultAll.success, false);
 		});
 
 		it('matches first successful sub-matcher', () => {
@@ -658,6 +662,8 @@ describe('TreeMatcher', () => {
 			], elAdapter);
 			const result = tm.testNodeSub(nodeEntry, ancestorPath);
 			assert.equal(result.success, true);
+			const resultAll = tm.testAll(nodeEntry, ancestorPath);
+			assert.equal(resultAll.success, true);
 		});
 	});
 
@@ -944,6 +950,8 @@ describe('TreeMatcher', () => {
 			], elAdapter);
 			const result = tm.testNodeSub(nodeEntry, ancestorPath);
 			assert.equal(result.success, true);
+			const resultAll = tm.testAll(nodeEntry, ancestorPath);
+			assert.equal(resultAll.success, true);
 		});
 
 		it('fails sub-rule when next sibling does not match', () => {
@@ -954,6 +962,8 @@ describe('TreeMatcher', () => {
 			], elAdapter);
 			const result = tm.testNodeSub(nodeEntry, ancestorPath);
 			assert.equal(result.success, false);
+			const resultAll = tm.testAll(nodeEntry, ancestorPath);
+			assert.equal(resultAll.success, false);
 		});
 
 		it('matches sub-rule with prev sibling', () => {
@@ -964,6 +974,8 @@ describe('TreeMatcher', () => {
 			], elAdapter);
 			const result = tm.testNodeSub(nodeEntry, ancestorPath);
 			assert.equal(result.success, true);
+			const resultAll = tm.testAll(nodeEntry, ancestorPath);
+			assert.equal(resultAll.success, true);
 		});
 
 		it('fails sub-rule when prev sibling does not match', () => {
@@ -974,6 +986,8 @@ describe('TreeMatcher', () => {
 			], elAdapter);
 			const result = tm.testNodeSub(nodeEntry, ancestorPath);
 			assert.equal(result.success, false);
+			const resultAll = tm.testAll(nodeEntry, ancestorPath);
+			assert.equal(resultAll.success, false);
 		});
 
 		it('matches sub-rule with both next and prev siblings', () => {
@@ -984,6 +998,8 @@ describe('TreeMatcher', () => {
 			], elAdapter);
 			const result = tm.testNodeSub(nodeEntry, ancestorPath);
 			assert.equal(result.success, true);
+			const resultAll = tm.testAll(nodeEntry, ancestorPath);
+			assert.equal(resultAll.success, true);
 		});
 
 		it('creates sub-rule from object with sibling and prevSibling', () => {
@@ -999,6 +1015,8 @@ describe('TreeMatcher', () => {
 			], elAdapter);
 			const result = tm.testNodeSub(nodeEntry, ancestorPath);
 			assert.equal(result.success, true);
+			const resultAll = tm.testAll(nodeEntry, ancestorPath);
+			assert.equal(resultAll.success, true);
 		});
 
 		it('uses sibling context from path without explicit childIndex', () => {
@@ -1009,6 +1027,8 @@ describe('TreeMatcher', () => {
 			], elAdapter);
 			const result = tm.testNodeSub(nodeEntry, ancestorPath);
 			assert.equal(result.success, true);
+			const resultAll = tm.testAll(nodeEntry, ancestorPath);
+			assert.equal(resultAll.success, true);
 		});
 
 		it('fails when name/attrs/path fail even if siblings would match', () => {
@@ -1019,6 +1039,8 @@ describe('TreeMatcher', () => {
 			], elAdapter);
 			const result = tm.testNodeSub(nodeEntry, ancestorPath);
 			assert.equal(result.success, false);
+			const resultAll = tm.testAll(nodeEntry, ancestorPath);
+			assert.equal(resultAll.success, false);
 		});
 
 		it('supports method override as third argument', () => {
@@ -1029,6 +1051,8 @@ describe('TreeMatcher', () => {
 			], elAdapter);
 			const result = tm.testNodeSub(nodeEntry, ancestorPath, TreeMatcher.method.orList);
 			assert.equal(result.success, true);
+			const resultAll = tm.testAll(nodeEntry, ancestorPath, TreeMatcher.method.orList);
+			assert.equal(resultAll.success, true);
 		});
 	});
 
@@ -1053,6 +1077,8 @@ describe('TreeMatcher', () => {
 			const tm = getMatcherFromCssSelector('div, span', elAdapter);
 			const result = tm.testNodeSub(nodeEntry, path);
 			assert.equal(result.success, true);
+			const resultAll = tm.testAll(nodeEntry, path);
+			assert.equal(resultAll.success, true);
 		});
 
 		it('supports descendant combinator (p span)', () => {
