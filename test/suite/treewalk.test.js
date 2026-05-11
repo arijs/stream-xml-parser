@@ -2,7 +2,7 @@
 
 const { describe, it } = require('node:test');
 const assert = require('node:assert/strict');
-const { getParser, treeWalk } = require('../..');
+const { getParser, treeWalk, getFullTreePath } = require('../..');
 
 function parse(html) {
 	const p = getParser();
@@ -163,6 +163,19 @@ describe('treeWalk', () => {
 				}, []);
 			});
 			assert.ok(instrs.length > 0);
+		});
+	});
+
+	describe('getFullTreePath', () => {
+		it('returns a node and its path from the root', () => {
+			const { tree, elAdapter } = parse('<div><span><a/><b/><em>deep</em><c/></span></div>');
+			const { node, path } = getFullTreePath(tree[0], ({ node }) => elAdapter.nameGet(node) === 'em', elAdapter);
+			const result = [...path, node];
+
+			assert.deepEqual(result.map(e => elAdapter.nameGet(e.node)), ['div', 'span', 'em']);
+			assert.deepEqual(result.map(e => e.parentNode && elAdapter.nameGet(e.parentNode)), [null, 'div', 'span']);
+			assert.deepEqual(result.map(e => e.childIndex), [null, 0, 2]);
+			assert.deepEqual(result.map(e => e.childCount), [null, 1, 4]);
 		});
 	});
 });

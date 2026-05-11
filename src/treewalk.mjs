@@ -63,3 +63,36 @@ function treeWalk(node, elAdapter, walkFns, path = [], pathCtx = [], nodeCtx = n
 }
 
 export default treeWalk;
+
+export function getFullTreePath(root, testTarget, elAdapter) {
+	let targetNode = null, targetPath = null;
+	treeWalk(root, elAdapter, {
+		onNode: function(node, path) {
+			if (testTarget({ node, path, pathCtx: this.pathCtx, nodeCtx: this.nodeCtx })) {
+				targetPath = [];
+
+				var pathCtx = this.pathCtx;
+				for (var i = 0; i < path.length; i++) {
+					var pathNode = path[i];
+					var parentNode = i > 0 ? path[i - 1] : null;
+					var ctxItem = pathCtx[i];
+					targetPath.push(buildPathEntry(pathNode, parentNode, ctxItem));
+				}
+				targetNode = buildPathEntry(node, path[path.length - 1], this.nodeCtx);
+
+				return this.abort();
+			}
+		},
+	}, []);
+	return { node: targetNode, path: targetPath };
+	function buildPathEntry(node, parentNode, ctxItem) {
+		var childIndexInParent = ctxItem ? ctxItem.index : null;
+		var childCountInParent = ctxItem ? ctxItem.count : null;
+		return {
+			node,
+			parentNode,
+			childIndex: childIndexInParent,
+			childCount: childCountInParent,
+		};
+	}
+}
