@@ -872,7 +872,11 @@ describe('printerTransform', () => {
 				assert.strictEqual(pCall.result.path.yes, 1, 'p result.path.yes should be 1');
 				assert.strictEqual(pCall.result.path.not, 0, 'p result.path.not should be 0');
 				assert.strictEqual(pCall.result.path.success, true, 'p result.path.success should be true');
-				assert.strictEqual(pCall.result.nextSibling, undefined, 'p result.nextSibling should be undefined');
+
+				assert.strictEqual(typeof pCall.result.nextSibling, 'object', 'p result.nextSibling should be an object');
+				assert.strictEqual(pCall.result.nextSibling.success, true, 'p result.nextSibling.success should be true');
+				assert.strictEqual(pCall.result.nextSibling.rulesCount, 0, 'p result.nextSibling.rulesCount should be 0');
+
 				assert.strictEqual(typeof pCall.result.prevSibling, 'object', 'p result.prevSibling should be an object');
 				assert.strictEqual(pCall.result.prevSibling.success, true, 'p result.prevSibling.success should be true');
 				assert.strictEqual(pCall.result.prevSibling.failedCount, 0, 'p result.prevSibling.failedCount should be 0');
@@ -1131,7 +1135,11 @@ describe('printerTransform', () => {
 					assert.strictEqual(pCall.result.path.yes, 1, 'p result.path.yes should be 1');
 					assert.strictEqual(pCall.result.path.not, 0, 'p result.path.not should be 0');
 					assert.strictEqual(pCall.result.path.success, true, 'p result.path.success should be true');
-					assert.strictEqual(pCall.result.nextSibling, undefined, 'p result.nextSibling should be undefined');
+
+					assert.strictEqual(typeof pCall.result.nextSibling, 'object', 'p result.nextSibling should be an object');
+					assert.strictEqual(pCall.result.nextSibling.success, true, 'p result.nextSibling.success should be true');
+					assert.strictEqual(pCall.result.nextSibling.rulesCount, 0, 'p result.nextSibling.rulesCount should be 0');
+
 					assert.strictEqual(typeof pCall.result.prevSibling, 'object', 'p result.prevSibling should be an object');
 					assert.strictEqual(pCall.result.prevSibling.success, true, 'p result.prevSibling.success should be true');
 					assert.strictEqual(pCall.result.prevSibling.failedCount, 0, 'p result.prevSibling.failedCount should be 0');

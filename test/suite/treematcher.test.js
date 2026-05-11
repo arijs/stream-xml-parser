@@ -798,6 +798,8 @@ describe('TreeMatcher', () => {
 			const tm = new TreeMatcher(elAdapter);
 			tm.name('b');
 			tm.prevSibling('a <1>');
+			assert.equal(tm.rulesPrevSibling.length, 1);
+			assert.equal(tm.rulesNextSibling.length, 0);
 			const result = tm.testAll(nodeEntry, path);
 			assert.equal(result.success, true);
 		});

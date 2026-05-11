@@ -717,24 +717,27 @@ TreeMatcher.prototype = {
 		return rule.test(sibling);
 	},
 	testNodeSiblings: function(parentNode, childIndex, direction, method) {
-		if (null == parentNode || null == childIndex) {
-			return { success: false };
+		var ruleList = 'prev' === direction ? this.rulesPrevSibling : this.rulesNextSibling;
+		var rulesCount = ruleList.length;
+		if (!rulesCount) {
+			return { success: true, rulesCount };
 		}
-		var childCount = this.elAdapter.childCount(parentNode);
+
+		var childCount = parentNode ? this.elAdapter.childCount(parentNode) : 0;
 		var siblingIndices = [];
-		
+
 		if ('prev' === direction) {
 			// Previous siblings: [childIndex-1, childIndex-2, ..., 0]
-			for (var i = childIndex - 1; i >= 0; i--) {
+			for (var i = (childIndex || 0) - 1; i >= 0; i--) {
 				siblingIndices.push(i);
 			}
 		} else {
 			// Next siblings: [childIndex+1, childIndex+2, ..., childCount-1]
-			for (var i = childIndex + 1; i < childCount; i++) {
+			for (var i = (childIndex || 0) + 1; i < childCount; i++) {
 				siblingIndices.push(i);
 			}
 		}
-		
+
 		// Convert indices to sibling nodes with their indices
 		var siblings = [];
 		for (var i = 0; i < siblingIndices.length; i++) {
@@ -745,19 +748,27 @@ TreeMatcher.prototype = {
 				index: idx
 			});
 		}
-		
-		var ruleList = 'prev' === direction ? this.rulesPrevSibling : this.rulesNextSibling;
+
 		var self = this;
 		return this.testRuleOrder(ruleList, siblings, function(rule) {
 			return self.testSiblingAdapter(rule);
 		}, function({success, active, failed, attemptsList: attempts}) {
 			return {
 				success,
+				rulesCount,
 				active,
 				failedCount: failed.length,
 				attemptsCount: attempts.length,
 				failed,
 				attempts,
+				// debugInfo: {
+				// 	parentNodeName: parentNode ? self.elAdapter.nameGet(parentNode) : null,
+				// 	direction,
+				// 	childIndex,
+				// 	childCount,
+				// 	siblingIndices: siblingIndices.join(','),
+				// 	siblings: siblings.map(s => s.index+'.'+self.elAdapter.nameGet(s.node)).join(' / '),
+				// },
 			};
 		});
 	},
@@ -770,7 +781,6 @@ TreeMatcher.prototype = {
 				path = this.testPath(testPath, opt && opt.methodPath);
 				if (path.success) {
 					var ancestorsCount = testPath ? testPath.length : 0;
-					// var pathEntry = testPath && ancestorsCount ? testPath[ancestorsCount - 1] : null;
 					var parentNode = testNode.parentNode;
 					var childIndex = testNode.childIndex;
 					var rulesNextSibling = this.rulesNextSibling.length > 0 ? this.rulesNextSibling : null;
@@ -781,24 +791,19 @@ TreeMatcher.prototype = {
 						ancestorsCount &&
 						(null == parentNode || null == childIndex)
 					) {
-						// console.error(`>>> testAll: parentNode or childIndex not found`, {testNode, testPath, opt, rulesNextSibling, rulesPrevSibling, parentNode, childIndex});
 						throw new Error('Sibling tests require path with parent node and child index');
 					}
 
-					// Test next siblings if rules exist
-					if (rulesNextSibling) {
-						nextSibling = this.testNodeSiblings(parentNode, childIndex, 'next', opt && opt.methodSiblings);
-						if (!nextSibling.success) {
-							return { success: false, name, attr, path, nextSibling, prevSibling, subMatchers };
-						}
+					// Test next siblings
+					nextSibling = this.testNodeSiblings(parentNode, childIndex, 'next', opt && opt.methodSiblings);
+					if (!nextSibling.success) {
+						return { success: false, name, attr, path, nextSibling, prevSibling, subMatchers };
 					}
 
-					// Test prev siblings if rules exist
-					if (rulesPrevSibling) {
-						prevSibling = this.testNodeSiblings(parentNode, childIndex, 'prev', opt && opt.methodSiblings);
-						if (!prevSibling.success) {
-							return { success: false, name, attr, path, nextSibling, prevSibling, subMatchers };
-						}
+					// Test prev siblings
+					prevSibling = this.testNodeSiblings(parentNode, childIndex, 'prev', opt && opt.methodSiblings);
+					if (!prevSibling.success) {
+						return { success: false, name, attr, path, nextSibling, prevSibling, subMatchers };
 					}
 
 					subMatchers = this.testNodeSub(testNode, testPath, opt && opt.methodSub);
