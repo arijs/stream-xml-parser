@@ -34,7 +34,7 @@ function parseString(str, elAdapter) {
 }
 
 export function prepare(rep, level, path, elAdapter, printer, transformName, noFormatDefault) {
-	var {name, tree, text, noFormat} = rep;
+	var {name, tree, text, noFormat, printer: repPrinter} = rep;
 	var error;
 	if (null == noFormat) noFormat = noFormatDefault;
 	if (null == tree && !noFormat) {
@@ -49,7 +49,13 @@ export function prepare(rep, level, path, elAdapter, printer, transformName, noF
 			+rep.indent === rep.indent ? rep.indent :
 			rep.indent instanceof Function ? rep.indent(level) :
 			level;
-		text = printTreeSync({tree, elAdapter, path, level, printer});
+		// The user must be aware here that if he has a matcher and returns a new replacement
+		// tree that has nodes that also match the same matcher, then the transform will be
+		// called again, which will cause an infinite loop if the transform always returns a
+		// new tree. To prevent this, the user can provide a different printer instance that
+		// does not have the `printTag` method overridden by the transform, so that the
+		// transform won't be called again for the new tree.
+		text = printTreeSync({tree, elAdapter, path, level, printer: repPrinter || printer});
 	} else if (!noFormat) {
 		text =
 			printer.printTagSpaceBeforeOpen(level, printer.rootStrict) +

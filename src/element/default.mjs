@@ -38,7 +38,7 @@ export default ({
 		attrsAdd: (el, attr) => void el[keyAttrs].push(attr),
 		attrsEach: (el, handler) => {
 			var list = el[keyAttrs];
-			if (!list) console.log('ElementDefault attrs not found', el, keyAttrs);
+			if (!list) throw new Error('ElementDefault attrs not found: ' + JSON.stringify({keyAttrs, el}));
 			var count = list && list.length || 0;
 			var ctx = {
 				_break: 1 << 0,
