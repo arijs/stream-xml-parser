@@ -40,7 +40,14 @@ export function getMatcherFromCssSelector(selector, elAdapter, opt) {
 		if (opt && opt.beforeProcessAstRuleItemRecursive instanceof Function) {
 			ruleAst = cssSelectorAstRuleRecursive(ruleAst, opt.beforeProcessAstRuleItemRecursive);
 		}
-		compiled.push(compileRuleChain(ruleAst));
+		var compiledRule = compileRuleChain(ruleAst);
+		if (opt && opt.afterProcessCompiledRule instanceof Function) {
+			compiledRule = opt.afterProcessCompiledRule({ compiledRule, ruleAst, index: i, ast }) || compiledRule;
+		}
+		compiled.push(compiledRule);
+	}
+	if (opt && opt.afterProcessCompiled instanceof Function) {
+		compiled = opt.afterProcessCompiled({ compiled, ast }) || compiled;
 	}
 	if (1 === compiled.length) {
 		return getMatcherFrom(compiled[0], elAdapter, opt && opt.matcher);
@@ -178,7 +185,7 @@ function compileCompound(items) {
 				out.attrs.push(['id', item.name]);
 				break;
 			case 'ClassName':
-				out.attrs.push(['class', classTokenRegex(item.name)]);
+				out.attrs.push(['class', classTokenRegex(item.name), { allowMultipleRules: true }]);
 				break;
 			case 'Attribute':
 				out.attrs.push(attributeToMatcherAttr(item));
@@ -213,13 +220,13 @@ function attributeToMatcherAttr(item) {
 	if ('!=' === item.operator) {
 		return [item.name, function(attrValue) {
 			return String(attrValue) !== value;
-		}];
+		}, { allowMultipleRules: true }];
 	}
 	if ('~=' === item.operator) {
 		var tokenRe = classTokenRegex(value);
 		return [item.name, function(attrValue) {
 			return tokenRe.test(String(attrValue));
-		}];
+		}, { allowMultipleRules: true }];
 	}
 	if ('|=' === item.operator) {
 		var langPrefix = value + '-';
@@ -241,7 +248,7 @@ function attributeToMatcherAttr(item) {
 	if ('*=' === item.operator) {
 		return [item.name, function(attrValue) {
 			return String(attrValue).indexOf(value) !== -1;
-		}];
+		}, { allowMultipleRules: true }];
 	}
 	throw new Error('Unsupported selector attribute operator: ' + item.operator);
 }

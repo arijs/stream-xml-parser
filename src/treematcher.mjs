@@ -174,20 +174,34 @@ export var treeMethod = {
 			return {
 				rules,
 				count,
+				reduceCalls: [],
 				nomatch: 0,
 				success: false
 			};
 		},
-		reduce: function(b, a, {ruleIndex}) {
-			if (b) {
-				a.count[ruleIndex] += 1;
-			} else if (ruleIndex + 1 === a.rules.length) {
-				a.nomatch += 1;
+		reduce: function(itemSuccess, result, entry) {
+			var ruleIndex = entry.ruleIndex;
+			if (itemSuccess) {
+				result.count[ruleIndex] += 1;
+			} else if (ruleIndex + 1 === result.rules.length) {
+				result.nomatch += 1;
 			}
-			return {
-				result: a,
-				_break: b
+			var resultObj = {
+				result: result,
+				// if entry.rule.allowMultipleRules is false or null, we consider the current
+				// item as matched and consumed, the current item will not be tested against the
+				// next rules in the list, and the next item will be tested starting from the
+				// first rule in the list, otherwise we continue to test the current item against
+				// the next rules in the list.
+				// Practical example: if we have a rule list of [class=foo, class=bar], and we
+				// want to match an element with class="foo bar", then we should set
+				// allowMultipleRules to true for the first rule, so that the element will have
+				// the opportunity to match both rules, otherwise it will only match the first
+				// rule and not the second rule.
+				_break: itemSuccess && !entry.rule.allowMultipleRules
 			};
+			result.reduceCalls.push({...entry, itemSuccess});
+			return resultObj;
 		},
 		final: function(result) {
 			var rules = result.rules;
@@ -195,7 +209,9 @@ export var treeMethod = {
 			var rc = rules.length;
 			var success = true;
 			for (var i = 0; i < rc; i++) {
-				success = rules[i].repeatMin <= count[i] && count[i] <= rules[i].repeatMax;
+				var ruleItem = rules[i];
+				var countItem = count[i];
+				success = ruleItem.repeatMin <= countItem && countItem <= ruleItem.repeatMax;
 				if (!success) break;
 			}
 			result.success = success;
@@ -228,6 +244,7 @@ var defaultOpts = {
 		repeatGreedy: false,
 		normalizeAttrName: strPrepare.spaceLower,
 		normalizeAttrValue: strPrepare.spaceLower,
+		allowMultipleRules: false,
 	},
 	sibling: {
 		repeatMin: 1,
@@ -502,6 +519,15 @@ TreeMatcher.prototype = {
 	getAttrTestFrom: function(testAttr) {
 		testAttr = this.getAttrTestFromString(testAttr);
 		testAttr = this.getAttrTestFromArray(testAttr);
+		if (
+			testAttr.opt instanceof Object &&
+			STRING === typeof testAttr.opt.repeater
+		) {
+			var item = this.getStringOpt(' '+testAttr.opt.repeater);
+			testAttr.opt.repeatMin = item.opt.repeatMin;
+			testAttr.opt.repeatMax = item.opt.repeatMax;
+			testAttr.opt.repeatGreedy = item.opt.repeatGreedy;
+		}
 		return testAttr;
 	},
 	attr: function(testAttrSrc, opt) {
@@ -541,9 +567,6 @@ TreeMatcher.prototype = {
 	},
 	testAttrRule: function(rule, attr) {
 		return rule.test(attr);
-	},
-	testAttrItem: function(attr) {
-		return this.testRuleItem(this.rulesAttrs, attr, this.testAttrRule);
 	},
 	testNodeAttrs: function(node, method) {
 		return this.testRuleItemList(
