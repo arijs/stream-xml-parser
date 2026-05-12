@@ -28,14 +28,37 @@ export function getMatcherFromCssSelector(selector, elAdapter, opt) {
 	if (!ast || 'Selector' !== ast.type || !(ast.rules instanceof Array)) {
 		throw new Error('Invalid CSS selector AST');
 	}
+	if (opt && opt.beforeProcessAst instanceof Function) {
+		ast = opt.beforeProcessAst(ast) || ast;
+	}
 	var compiled = [];
 	for (var i = 0; i < ast.rules.length; i++) {
-		compiled.push(compileRuleChain(ast.rules[i]));
+		var ruleAst = ast.rules[i];
+		if (opt && opt.beforeProcessAstRule instanceof Function) {
+			ruleAst = opt.beforeProcessAstRule(ruleAst) || ruleAst;
+		}
+		if (opt && opt.beforeProcessAstRuleItemRecursive instanceof Function) {
+			ruleAst = cssSelectorAstRuleRecursive(ruleAst, opt.beforeProcessAstRuleItemRecursive);
+		}
+		compiled.push(compileRuleChain(ruleAst));
 	}
 	if (1 === compiled.length) {
-		return getMatcherFrom(compiled[0], elAdapter, opt);
+		return getMatcherFrom(compiled[0], elAdapter, opt && opt.matcher);
 	}
-	return getMatcherFromArray(compiled, elAdapter, opt);
+	return getMatcherFromArray(compiled, elAdapter, opt && opt.matcher);
+}
+
+function cssSelectorAstRuleRecursive(rule, handler, path) {
+	if (!rule) return rule;
+	path = path || [];
+	const nextRule = {
+		...rule,
+		items: handler({ items: rule.items, rule, path }) || rule.items,
+	};
+	if (rule.nestedRule) {
+		nextRule.nestedRule = cssSelectorAstRuleRecursive(rule.nestedRule, handler, path.concat([nextRule]));
+	}
+	return nextRule;
 }
 
 function compileRuleChain(rule) {

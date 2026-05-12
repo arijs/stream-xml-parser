@@ -19,7 +19,32 @@ function parse(html) {
 	return p.getResult();
 }
 
+function stripPseudoItems(items) {
+	return items.filter(item => item.type !== 'PseudoClass' && item.type !== 'PseudoElement');
+}
 
+function stripPseudosFromRule(rule) {
+	if (!rule) return rule;
+	const nextRule = {
+		...rule,
+		items: stripPseudoItems(rule.items || []),
+	};
+	if (rule.nestedRule) {
+		nextRule.nestedRule = stripPseudosFromRule(rule.nestedRule);
+	}
+	return nextRule;
+}
+
+function stripPseudosFromSelectorAst(ast) {
+	return {
+		...ast,
+		rules: (ast.rules || []).map(stripPseudosFromRule),
+	};
+}
+
+function stripPseudosFromRuleItems(context) {
+	return stripPseudoItems(context.items);
+}
 
 describe('TreeMatcher', () => {
 	describe('name matching', () => {
@@ -1203,6 +1228,60 @@ describe('TreeMatcher', () => {
 		it('throws on unsupported pseudo elements', () => {
 			const { elAdapter } = parse('<div></div>');
 			assert.throws(() => getMatcherFromCssSelector('a::before', elAdapter), /Unsupported selector rule: pseudo element/);
+		});
+
+		it('beforeProcessAst can strip pseudo classes and pseudo elements and still match', () => {
+			const { tree, elAdapter } = parse('<html><body><div class="notice"><a class="link">docs</a></div></body></html>');
+			const { nodeEntry, path } = nodeAndPath(tree[0], 'a', elAdapter);
+			const tm = getMatcherFromCssSelector('div.notice:hover::before > a.link:focus', elAdapter, {
+				beforeProcessAst: stripPseudosFromSelectorAst,
+			});
+			assert.equal(tm.testAll(nodeEntry, path).success, true);
+		});
+
+		it('beforeProcessAst can strip pseudo classes and pseudo elements but still not match the wrong node', () => {
+			const { tree, elAdapter } = parse('<html><body><div class="other"><a class="link">docs</a></div></body></html>');
+			const { nodeEntry, path } = nodeAndPath(tree[0], 'a', elAdapter);
+			const tm = getMatcherFromCssSelector('div.notice:hover::before > a.link:focus', elAdapter, {
+				beforeProcessAst: stripPseudosFromSelectorAst,
+			});
+			assert.equal(tm.testAll(nodeEntry, path).success, false);
+		});
+
+		it('beforeProcessAstRule can strip pseudo classes and pseudo elements and still match', () => {
+			const { tree, elAdapter } = parse('<html><body><div class="notice"><a class="link">docs</a></div></body></html>');
+			const { nodeEntry, path } = nodeAndPath(tree[0], 'a', elAdapter);
+			const tm = getMatcherFromCssSelector('div.notice:hover::before > a.link:focus', elAdapter, {
+				beforeProcessAstRule: stripPseudosFromRule,
+			});
+			assert.equal(tm.testAll(nodeEntry, path).success, true);
+		});
+
+		it('beforeProcessAstRule can strip pseudo classes and pseudo elements but still not match the wrong node', () => {
+			const { tree, elAdapter } = parse('<html><body><div class="notice"><a class="other">docs</a></div></body></html>');
+			const { nodeEntry, path } = nodeAndPath(tree[0], 'a', elAdapter);
+			const tm = getMatcherFromCssSelector('div.notice:hover::before > a.link:focus', elAdapter, {
+				beforeProcessAstRule: stripPseudosFromRule,
+			});
+			assert.equal(tm.testAll(nodeEntry, path).success, false);
+		});
+
+		it('beforeProcessAstRuleItemRecursive can strip pseudo classes and pseudo elements and still match', () => {
+			const { tree, elAdapter } = parse('<html><body><div class="notice"><a class="link">docs</a></div></body></html>');
+			const { nodeEntry, path } = nodeAndPath(tree[0], 'a', elAdapter);
+			const tm = getMatcherFromCssSelector('div.notice:hover::before > a.link:focus', elAdapter, {
+				beforeProcessAstRuleItemRecursive: stripPseudosFromRuleItems,
+			});
+			assert.equal(tm.testAll(nodeEntry, path).success, true);
+		});
+
+		it('beforeProcessAstRuleItemRecursive can strip pseudo classes and pseudo elements but still not match the wrong node', () => {
+			const { tree, elAdapter } = parse('<html><body><div class="other"><a class="link">docs</a></div></body></html>');
+			const { nodeEntry, path } = nodeAndPath(tree[0], 'a', elAdapter);
+			const tm = getMatcherFromCssSelector('div.notice:hover::before > a.link:focus', elAdapter, {
+				beforeProcessAstRuleItemRecursive: stripPseudosFromRuleItems,
+			});
+			assert.equal(tm.testAll(nodeEntry, path).success, false);
 		});
 
 		it('supports attribute operator ^=', () => {
