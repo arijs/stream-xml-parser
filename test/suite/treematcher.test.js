@@ -221,6 +221,22 @@ describe('TreeMatcher', () => {
 			const result = tm.testNodeAttrs(tree[0]);
 			assert.equal(result.success, true);
 		});
+
+		it('fails mixed-case hashed class regex with default normalizeAttrValue', () => {
+			const { tree, elAdapter } = parse('<div class="scope_bootstrapScope__qve0r20 contract_table__v4ey380"></div>');
+			const tm = new TreeMatcher(elAdapter);
+			tm.attr(['class', /\bscope_bootstrapScope__qve0r20\b/]);
+			const result = tm.testNodeAttrs(tree[0]);
+			assert.equal(result.success, false);
+		});
+
+		it('matches mixed-case hashed class regex with normalizeAttrValue set to raw', () => {
+			const { tree, elAdapter } = parse('<div class="scope_bootstrapScope__qve0r20 contract_table__v4ey380"></div>');
+			const tm = new TreeMatcher(elAdapter);
+			tm.attr(['class', /\bscope_bootstrapScope__qve0r20\b/, { normalizeAttrValue: TreeMatcher.strPrepare.raw }]);
+			const result = tm.testNodeAttrs(tree[0]);
+			assert.equal(result.success, true);
+		});
 	});
 
 	describe('attribute repeaters', () => {

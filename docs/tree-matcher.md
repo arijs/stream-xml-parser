@@ -167,6 +167,22 @@ There's three types of _Rules_ you can add:
     - `treeMatcher.attr({value: "json \"string\""})` - if the _name_ or _value_ search are `null` or `undefined`, they accept anything.
       So this will search any attributes with the value `json "string"`.
 
+  - *Attribute Value Normalization (important for class hashes):*
+    By default, TreeMatcher applies `normalizeAttrValue: TreeMatcher.strPrepare.spaceLower`, which trims spaces and lowercases attribute values before matching.
+    This is usually fine, but it can break matching against case-sensitive class hashes (for example `scope_bootstrapScope__qve0r20`) when using regexes.
+
+    Use `TreeMatcher.strPrepare.raw` to preserve the original attribute value casing:
+    ```js
+    import { TreeMatcher } from '@arijs/stream-xml-parser';
+
+    const tm = new TreeMatcher(elAdapter);
+    tm.attr([
+      'class',
+      /\bscope_bootstrapScope__qve0r20\b/,
+      { normalizeAttrValue: TreeMatcher.strPrepare.raw }
+    ]);
+    ```
+
 - **Path:**
   Searchs nodes by their ancestors' chain from the root node of the document. The list of parent nodes from the current node's parent until the root.
 
