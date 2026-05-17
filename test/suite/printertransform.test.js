@@ -9,7 +9,11 @@ function parse(html) {
 }
 
 function nodeAndPath(root, targetName, elAdapter) {
-	const { node: nodeEntry, path: ancestorPath } = getFullTreePath(root, ({ node: n }) => elAdapter.nameGet(n) === targetName, elAdapter);
+	const fullTreePath = getFullTreePath(root, ({ node: n }) => elAdapter.nameGet(n.node) === targetName, elAdapter);
+	if (!fullTreePath) {
+		return { node: null, path: null, fullPath: null };
+	}
+	const { node: nodeEntry, path: ancestorPath } = fullTreePath;
 	if (!nodeEntry) {
 		return { node: null, path: null, fullPath: null };
 	}

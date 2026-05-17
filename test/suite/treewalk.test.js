@@ -14,7 +14,7 @@ describe('treeWalk', () => {
 			const { tree, elAdapter } = parse('<div><span></span><p></p></div>');
 			const visited = [];
 			treeWalk(tree[0], elAdapter, {
-				onNode: (node) => visited.push(elAdapter.nameGet(node)),
+					onNode: ({ node }) => visited.push(elAdapter.nameGet(node.node)),
 			}, []);
 			assert.deepEqual(visited, ['div', 'span', 'p']);
 		});
@@ -23,7 +23,7 @@ describe('treeWalk', () => {
 			const { tree, elAdapter } = parse('<div>hello</div>');
 			const texts = [];
 			treeWalk(tree[0], elAdapter, {
-				onText: (node) => texts.push(elAdapter.textValueGet(node)),
+					onText: ({ node }) => texts.push(elAdapter.textValueGet(node.node)),
 			}, []);
 			assert.deepEqual(texts, ['hello']);
 		});
@@ -32,7 +32,7 @@ describe('treeWalk', () => {
 			const { tree, elAdapter } = parse('<div><!-- my comment --></div>');
 			const comments = [];
 			treeWalk(tree[0], elAdapter, {
-				onComment: (node) => comments.push(elAdapter.textValueGet(node)),
+					onComment: ({ node }) => comments.push(elAdapter.textValueGet(node.node)),
 			}, []);
 			assert.deepEqual(comments, [' my comment ']);
 		});
@@ -41,8 +41,8 @@ describe('treeWalk', () => {
 			const { tree, elAdapter } = parse('<div><span></span></div>');
 			const paths = [];
 			treeWalk(tree[0], elAdapter, {
-				onNode: (node, path) => {
-					paths.push(path.map(n => elAdapter.nameGet(n)));
+					onNode: ({ path }) => {
+						paths.push(path.map(n => elAdapter.nameGet(n.node)));
 				},
 			}, []);
 			assert.deepEqual(paths, [
@@ -55,7 +55,7 @@ describe('treeWalk', () => {
 			const { tree, elAdapter } = parse('<div></div>');
 			let passedAdapter = null;
 			treeWalk(tree[0], elAdapter, {
-				onNode: (node, path, adapter) => { passedAdapter = adapter; },
+					onNode: ({ elAdapter: adapter }) => { passedAdapter = adapter; },
 			}, []);
 			assert.equal(passedAdapter, elAdapter);
 		});
@@ -66,8 +66,8 @@ describe('treeWalk', () => {
 			const { tree, elAdapter } = parse('<div><span><em>deep</em></span></div>');
 			const visited = [];
 			treeWalk(tree[0], elAdapter, {
-				onNode: function(node) {
-					const name = elAdapter.nameGet(node);
+					onNode: function({ node }) {
+						const name = elAdapter.nameGet(node.node);
 					visited.push(name);
 					if (name === 'span') this.skip();
 				},
@@ -83,8 +83,8 @@ describe('treeWalk', () => {
 			const { tree, elAdapter } = parse('<div><a></a><b></b><c></c></div>');
 			const visited = [];
 			treeWalk(tree[0], elAdapter, {
-				onNode: function(node) {
-					const name = elAdapter.nameGet(node);
+					onNode: function({ node }) {
+						const name = elAdapter.nameGet(node.node);
 					visited.push(name);
 					if (name === 'a') this.abort();
 				},
@@ -101,8 +101,8 @@ describe('treeWalk', () => {
 			const { tree, elAdapter } = parse('<div><span></span><p></p></div>');
 			const div = tree[0];
 			treeWalk(div, elAdapter, {
-				onNode: function(node) {
-					if (elAdapter.nameGet(node) === 'span') {
+					onNode: function({ node }) {
+						if (elAdapter.nameGet(node.node) === 'span') {
 						this.remove();
 					}
 				},
@@ -131,7 +131,7 @@ describe('treeWalk', () => {
 			// Walk each node individually when passed an array
 			tree.forEach(node => {
 				treeWalk(node, elAdapter, {
-					onNode: (n) => visited.push(elAdapter.nameGet(n)),
+						onNode: ({ node }) => visited.push(elAdapter.nameGet(node.node)),
 				}, []);
 			});
 			assert.deepEqual(visited, ['a', 'b']);
@@ -144,7 +144,7 @@ describe('treeWalk', () => {
 			const decls = [];
 			tree.forEach(node => {
 				treeWalk(node, elAdapter, {
-					onDeclaration: (node) => decls.push(elAdapter.textValueGet(node)),
+						onDeclaration: ({ node }) => decls.push(elAdapter.textValueGet(node.node)),
 					onNode: () => {},
 				}, []);
 			});
@@ -156,7 +156,7 @@ describe('treeWalk', () => {
 			const instrs = [];
 			tree.forEach(node => {
 				treeWalk(node, elAdapter, {
-					onInstruction: (node) => instrs.push(elAdapter.textValueGet(node)),
+						onInstruction: ({ node }) => instrs.push(elAdapter.textValueGet(node.node)),
 					onNode: () => {},
 				}, []);
 			});
@@ -167,11 +167,11 @@ describe('treeWalk', () => {
 	describe('getFullTreePath', () => {
 		it('returns a node and its path from the root', () => {
 			const { tree, elAdapter } = parse('<div><span><a/><b/><em>deep</em><c/></span></div>');
-			const { node, path } = getFullTreePath(tree[0], ({ node }) => elAdapter.nameGet(node) === 'em', elAdapter);
+			const { node, path } = getFullTreePath(tree[0], ({ node }) => elAdapter.nameGet(node.node) === 'em', elAdapter);
 			const result = [...path, node];
 
 			assert.deepEqual(result.map(e => elAdapter.nameGet(e.node)), ['div', 'span', 'em']);
-			assert.deepEqual(result.map(e => e.parentNode && elAdapter.nameGet(e.parentNode)), [null, 'div', 'span']);
+			assert.deepEqual(result.map(e => e.parentNode && elAdapter.nameGet(e.parentNode)), [undefined, 'div', 'span']);
 			assert.deepEqual(result.map(e => e.childIndex), [null, 0, 2]);
 			assert.deepEqual(result.map(e => e.childCount), [null, 1, 4]);
 		});

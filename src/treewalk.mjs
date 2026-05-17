@@ -28,7 +28,7 @@ export function buildNodeEntryFromPath(path, pathCtx, i) {
 	return buildNodeEntry(pathNode, parentNode, ctxItem);
 }
 
-function treeWalk(node, elAdapter, walkFns, path = [], pathCtx = [], nodeCtx = null) {
+function treeWalk(nodeElement, elAdapter, walkFns, path = [], pathCtx = [], nodeCtx = null) {
 	var ret = 0;
 	var ctx = {
 		nodeCtx,
@@ -37,22 +37,24 @@ function treeWalk(node, elAdapter, walkFns, path = [], pathCtx = [], nodeCtx = n
 		abort() { ret |= _abort; },
 		remove() { ret |= _remove; },
 	};
+	var pathLast = path[path.length - 1];
+	var node = buildNodeEntry(nodeElement, pathLast && pathLast.node, nodeCtx);
 	var {onNode, onText, onComment, onDeclaration, onInstruction} = walkFns;
-	if (elAdapter.isText(node)) {
-		if (onText) onText.call(ctx, node, path, elAdapter);
+	if (elAdapter.isText(nodeElement)) {
+		if (onText) onText.call(ctx, {node, path, elAdapter});
 		return ret;
-	} else if (elAdapter.isComment(node)) {
-		if (onComment) onComment.call(ctx, node, path, elAdapter);
+	} else if (elAdapter.isComment(nodeElement)) {
+		if (onComment) onComment.call(ctx, {node, path, elAdapter});
 		return ret;
-	} else if (elAdapter.isDeclaration(node)) {
-		if (onDeclaration) onDeclaration.call(ctx, node, path, elAdapter);
+	} else if (elAdapter.isDeclaration(nodeElement)) {
+		if (onDeclaration) onDeclaration.call(ctx, {node, path, elAdapter});
 		return ret;
-	} else if (elAdapter.isInstruction(node)) {
-		if (onInstruction) onInstruction.call(ctx, node, path, elAdapter);
+	} else if (elAdapter.isInstruction(nodeElement)) {
+		if (onInstruction) onInstruction.call(ctx, {node, path, elAdapter});
 		return ret;
 	}
 	if (!(path instanceof Array)) path = [];
-	if (onNode) onNode.call(ctx, node, path, elAdapter);
+	if (onNode) onNode.call(ctx, {node, path, elAdapter});
 	if (
 		treeWalkIsSkip(ret) ||
 		treeWalkIsAbort(ret) ||
@@ -60,19 +62,18 @@ function treeWalk(node, elAdapter, walkFns, path = [], pathCtx = [], nodeCtx = n
 	) return ret;
 	path = [...path, node];
 	pathCtx = [...pathCtx, nodeCtx];
-	var rc = elAdapter.childCount(node);
+	var rc = elAdapter.childCount(nodeElement);
 	for (var i = 0; i < rc; i++) {
-		const nodeCtx = getNodeCtx(i, rc);
 		ret = treeWalk(
-			elAdapter.childIndexGet(node, i),
+			elAdapter.childIndexGet(nodeElement, i),
 			elAdapter,
 			walkFns,
 			path,
 			pathCtx,
-			nodeCtx,
+			getNodeCtx(i, rc),
 		);
 		if (treeWalkIsRemove(ret)) {
-			elAdapter.childSplice(node, i, 1)
+			elAdapter.childSplice(nodeElement, i, 1)
 			i--, rc--
 		}
 		if (treeWalkIsAbort(ret)) return ret;
@@ -84,35 +85,15 @@ function treeWalk(node, elAdapter, walkFns, path = [], pathCtx = [], nodeCtx = n
 export default treeWalk;
 
 export function getFullTreePath(root, testTarget, elAdapter) {
-	let targetNode = null, targetPath = null;
+	let targetEntry = null;
 	treeWalk(root, elAdapter, {
-		onNode: function(node, path) {
-			if (testTarget({ node, path, pathCtx: this.pathCtx, nodeCtx: this.nodeCtx })) {
-				targetPath = [];
-
-				var pathCtx = this.pathCtx;
-				for (var i = 0; i < path.length; i++) {
-					// var pathNode = path[i];
-					// var parentNode = i > 0 ? path[i - 1] : null;
-					// var ctxItem = pathCtx[i];
-					// targetPath.push(buildPathEntry(pathNode, parentNode, ctxItem));
-					targetPath.push(buildNodeEntryFromPath(path, pathCtx, i));
-				}
-				targetNode = buildNodeEntry(node, path[path.length - 1], this.nodeCtx);
+		onNode: function(entry) {
+			if (testTarget(entry)) {
+				targetEntry = entry;
 
 				return this.abort();
 			}
 		},
 	}, []);
-	return { node: targetNode, path: targetPath };
-	function buildPathEntry(node, parentNode, ctxItem) {
-		var childIndexInParent = ctxItem ? ctxItem.index : null;
-		var childCountInParent = ctxItem ? ctxItem.count : null;
-		return {
-			node,
-			parentNode,
-			childIndex: childIndexInParent,
-			childCount: childCountInParent,
-		};
-	}
+	return targetEntry;
 }

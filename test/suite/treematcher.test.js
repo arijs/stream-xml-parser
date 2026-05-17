@@ -1,9 +1,12 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { getParser, TreeMatcher, treeWalk, getFullTreePath } from '../../src/index.mjs';
-import { get } from 'node:http';
+import { getParser, TreeMatcher, getFullTreePath } from '../../src/index.mjs';
 function nodeAndPath(root, targetName, elAdapter) {
-	const { node: nodeEntry, path: ancestorPath } = getFullTreePath(root, ({ node: n }) => elAdapter.nameGet(n) === targetName, elAdapter);
+	const fullTreePath = getFullTreePath(root, ({ node: n }) => elAdapter.nameGet(n.node) === targetName, elAdapter);
+	if (!fullTreePath) {
+		return { node: null, path: null, fullPath: null };
+	}
+	const { node: nodeEntry, path: ancestorPath } = fullTreePath;
 	if (!nodeEntry) {
 		return { node: null, path: null, fullPath: null };
 	}
