@@ -88,7 +88,7 @@ export function getFullTreePath(root, testTarget, elAdapter) {
 	let targetEntry = null;
 	treeWalk(root, elAdapter, {
 		onNode: function(entry) {
-			if (testTarget(entry)) {
+			if (testTarget.call(this, entry)) {
 				targetEntry = entry;
 
 				return this.abort();
