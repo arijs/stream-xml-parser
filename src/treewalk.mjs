@@ -102,3 +102,125 @@ export function getFullTreePath(root, testTarget, elAdapter) {
 	}});
 	return targetEntry;
 }
+
+export function getAttr({node, elAdapter, targetName}) {
+	let found = undefined
+	elAdapter.attrsEach(node, function (name, value) {
+		switch (typeof targetName) {
+			case 'string':
+				if (name.toLowerCase() === targetName.toLowerCase()) {
+					found = value
+					return this._break
+				}
+				break
+			case 'function':
+				if (targetName(name, value)) {
+					found = value
+					return this._break
+				}
+				break
+		}
+	})
+	return found
+}
+
+export function onTextNodeCollectDefault(chunks) {
+	return chunks.join('').trim()
+}
+
+export function extractText({node, entry, elAdapter, onCollect = onTextNodeCollectDefault}) {
+	const chunks = []
+	treeWalk({node, elAdapter, walkFns: {
+		onText: ({ node: textEntry, elAdapter: adapter }) => {
+			const value = adapter.textValueGet(textEntry.node)
+			if (value) {
+				chunks.push(value)
+			}
+		},
+	}})
+	return onCollect(chunks, entry)
+}
+
+export function extractNodeTexts({
+	node: rootNode,
+	elAdapter,
+	rootMatcher,
+	onNodeCollect = onTextNodeCollectDefault,
+}) {
+	const walkCtx = {
+		texts: [],
+		chunks: undefined,
+	}
+	treeWalk({node: rootNode, elAdapter, walkCtx, walkFns: {
+		onNode: function ({ node, path, walkCtx }) {
+			if (node.parentNode === rootNode) {
+				if (!rootMatcher || rootMatcher.testAll(node, path).success) {
+					walkCtx.chunks = []
+				} else {
+					return this.skip()
+				}
+			}
+		},
+		onText: function ({ node, path, elAdapter, walkCtx }) {
+			if (path[0].node === rootNode && walkCtx.chunks) {
+				walkCtx.chunks.push(elAdapter.textValueGet(node.node))
+			}
+		},
+		onNodeExit: function (entry) {
+			const { node, walkCtx } = entry;
+			if (node.parentNode === rootNode && walkCtx.chunks) {
+				const text = onNodeCollect(walkCtx.chunks, entry)
+				walkCtx.chunks = undefined
+				walkCtx.texts.push(text)
+			}
+		},
+	}})
+	return walkCtx.texts
+}
+
+export function extractNodeTextsNoWalk({
+	node: rootNode,
+	elAdapter,
+	rootMatcher,
+	onNodeCollect = onTextNodeCollectDefault,
+}) {
+	const texts = []
+	const childCount = elAdapter.childCount(rootNode)
+	for (let index = 0; index < childCount; index += 1) {
+		const child = elAdapter.childIndexGet(rootNode, index)
+		// if (nodeName(child, elAdapter) !== 'td') {
+		if (rootMatcher && !rootMatcher.testAll({ node: child }, []).success) {
+			continue
+		}
+		const entry = {
+			node: {
+				node: child,
+				parentNode: rootNode,
+				childIndex: index,
+				childCount,
+			},
+			path: [
+				buildNodeEntry(rootNode, undefined, getNodeCtx(null, null)),
+			],
+			elAdapter,
+		}
+		const text = extractText({node: child, entry, elAdapter, onCollect: onNodeCollect})
+		texts.push(text)
+	}
+	return texts
+}
+
+export function findFirstDescendant({root, elAdapter, matcher, onAfterTest = () => {}}) {
+	let matchedNode = null
+	treeWalk({node: root, elAdapter, walkFns: {
+		onNode: function (entry) {
+			const { node, path, abort } = entry
+			if (matcher.testAll(node, path).success) {
+				matchedNode = node.node
+				abort()
+			}
+			onAfterTest(entry)
+		},
+	}})
+	return matchedNode
+}

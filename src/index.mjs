@@ -2,7 +2,14 @@ import XMLParser from './xmlparser.mjs';
 import TreeBuilder from './treebuilder.mjs';
 import TreeMatcher from './treematcher.mjs';
 import * as treeRender from './treerender.mjs';
-import treeWalk, { getFullTreePath } from './treewalk.mjs';
+import treeWalk, {
+	getFullTreePath,
+	getAttr,
+	extractText,
+	extractNodeTexts,
+	extractNodeTextsNoWalk,
+	findFirstDescendant,
+} from './treewalk.mjs';
 import Printer from './printer.mjs';
 import getMatcherFromCssSelector from './getmatcherfromcssselector.mjs';
 import elementDefault from './element/default.mjs';
@@ -32,10 +39,16 @@ export {
 	htmlVoidTagMap,
 	htmlStrictTagMap,
 	Printer,
-	printerTransform
+	printerTransform,
+	getMatcherFromCssSelector,
+	getFullTreePath,
+	getAttr as nodeGetAttr,
+	extractText as nodeExtractText,
+	extractNodeTexts as nodeExtractNodeTexts,
+	extractNodeTextsNoWalk as nodeExtractNodeTextsNoWalk,
+	findFirstDescendant as nodeFindFirstDescendant,
 };
 export { default as treeStats } from './treestats.mjs';
 export { default as testList } from './testlist.mjs';
 export { default as HTMLTypeset } from './htmltypeset.mjs';
 export { default as getParser } from './getparser.mjs';
-export { getMatcherFromCssSelector, getFullTreePath };
