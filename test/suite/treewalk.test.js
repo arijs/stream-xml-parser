@@ -470,18 +470,18 @@ describe('treeWalk', () => {
 				assert.equal(elAdapter.nameGet(found), 'a');
 			});
 
-		it('allows onAfterTest to call entry.skip() to skip branches', () => {
-			const { tree, elAdapter } = parse('<div><span><a id="hidden"></a></span><section><a id="found"></a></section></div>');
-			const matcher = getMatcherFromCssSelector('a', elAdapter);
-			const onAfterTest = ({ node, skip }) => {
-				const nodeName = elAdapter.nameGet(node.node);
-				if (nodeName === 'span') {
-					skip();
-				}
-			};
-			const found = findFirstDescendant({ root: tree[0], elAdapter, matcher, onAfterTest });
-			assert.equal(elAdapter.nameGet(found), 'a');
-			assert.equal(getAttr({ node: found, elAdapter, targetName: 'id' }), 'found', 'should skip span and find a in section');
+			it('allows onAfterTest to call entry.skip() to skip branches', () => {
+				const { tree, elAdapter } = parse('<div><span><a id="hidden"></a></span><section><a id="found"></a></section></div>');
+				const matcher = getMatcherFromCssSelector('a', elAdapter);
+				const onAfterTest = ({ node, skip }) => {
+					const nodeName = elAdapter.nameGet(node.node);
+					if (nodeName === 'span') {
+						skip();
+					}
+				};
+				const found = findFirstDescendant({ root: tree[0], elAdapter, matcher, onAfterTest });
+				assert.equal(elAdapter.nameGet(found), 'a');
+				assert.equal(getAttr({ node: found, elAdapter, targetName: 'id' }), 'found', 'should skip span and find a in section');
 			});
 		});
 	});
